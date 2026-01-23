@@ -1,0 +1,24 @@
+import pytest
+from httpx import ASGITransport, AsyncClient
+
+from app.main import app
+
+
+@pytest.fixture
+async def client():
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        yield ac
+
+
+async def test_health_check(client: AsyncClient):
+    response = await client.get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+async def test_api_root(client: AsyncClient):
+    response = await client.get("/api/")
+    assert response.status_code == 200
+    assert response.json() == {"message": "YoureHired API"}
