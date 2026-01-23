@@ -117,32 +117,105 @@ interface UserSelection {
 - Selection state needed across multiple views (selection → task generation → feedback)
 - Enables easy state persistence if needed later
 
-### 4. Client-Side Validation
+### 4. Validation Strategy
 
-**Decision**: Validate before API call with clear error messages
+Validation is implemented in two layers with distinct responsibilities.
 
-| Field | Validation Rules |
-|-------|-----------------|
-| company_name | Required, max 20 chars, trimmed |
-| role | Required, must match predefined role ID |
-| role_description | Optional, max 500 chars |
+---
 
-**Rationale**:
-- Immediate feedback improves UX
-- Reduces unnecessary API calls
-- Server-side validation still required for security
+#### 4a. Client-Side Validation (Before POST)
+
+**Purpose**: Fast feedback, prevent obvious mistakes, reduce unnecessary backend calls
+
+**What to validate on client**:
+- Required fields (`company_name`, `role`)
+- Max length (`role_description` ≤ 8,000 chars)
+- Empty / whitespace-only input rejection
+- Show inline errors & character counters
+
+**Why**:
+- Instant feedback improves UX
+- Cheaper (no request, no LLM call)
+- Prevents unnecessary server load
+
+> ⚠️ **Warning**: Client validation can be bypassed easily (curl, Postman, modified frontend). Never rely on it for security.
+
+---
+
+#### 4b. Server-Side Validation (Always Required)
+
+**Purpose**: Protect the system, enforce contracts, defend against abuse
+
+**What to validate on server**:
+- Required fields
+- Data types
+- Length limits (min and max)
+- Allowed values (enums)
+- Reject oversized payloads
+- Normalize input before LLM usage
+
+**Why**:
+- Client cannot be trusted
+- Prevent prompt injection via payload abuse
+- Prevent memory / cost explosions
+- Maintain API contract integrity
+
+---
+
+#### Field-by-Field Validation Rules
+
+##### `company_name` (Required)
+- **Purpose**: Anchor the prompt to a real company
+- **Type**: string
+- **Rules**:
+  - Required (cannot be empty)
+  - Trimmed (leading/trailing whitespace removed)
+  - Length: 2–100 characters
+  - Pattern: letters, spaces, dots, hyphens only (no emojis, special scripts, or symbols)
+  - Regex: `^[a-zA-Z][a-zA-Z\s.\-]{1,99}$`
+- **Rationale**: Prevents junk input like "aaa", "!!!!", or prompt-stuffing attempts
+
+##### `role` (Required)
+- **Purpose**: Select task templates and difficulty level
+- **Type**: string (enum)
+- **Rules**:
+  - Required
+  - Must match a predefined role ID from `PREDEFINED_ROLES`
+  - Valid values: `["backend_developer", "frontend_developer", "fullstack_developer", "devops_engineer", "qa_engineer", "data_engineer"]`
+- **Rationale**: Enum validation prevents arbitrary input and ensures consistent task generation
+
+##### `role_description` (Optional)
+- **Purpose**: Optional context for the LLM to customize tasks
+- **Type**: string | null
+- **Rules**:
+  - Optional (can be null or omitted)
+  - If present: must be trimmed
+  - If present: minimum 30 characters (prevents meaningless input)
+  - If present: maximum 8,000 characters
+  - Reject empty strings or whitespace-only strings (treat as null)
+- **Rationale**: Ensures meaningful context when provided while allowing users to skip
+
+#### Validation Summary Table
+
+| Field | Required | Min | Max | Pattern/Constraint |
+|-------|----------|-----|-----|-------------------|
+| `company_name` | ✅ | 2 | 100 | Letters, spaces, dots, hyphens only |
+| `role` | ✅ | - | - | Must match predefined enum |
+| `role_description` | ❌ | 30 | 8,000 | Trimmed, no empty strings |
+
+---
 
 ### 5. Input Sanitization (Prompt Injection Prevention)
 
-**Decision**: Sanitize all text inputs on backend before storage/use
+**Decision**: Sanitize all text inputs on backend before storage/LLM use
 
 ```python
-def sanitize_input(text: str) -> str:
-    """Remove potential prompt injection patterns."""
+def sanitize_input(text: str, max_length: int = 8000) -> str:
+    """Normalize and sanitize user input before LLM usage."""
     # Strip excessive whitespace
     text = " ".join(text.split())
-    # Limit length
-    text = text[:500]
+    # Enforce length limit
+    text = text[:max_length]
     # Additional sanitization as needed
     return text
 ```
@@ -150,6 +223,7 @@ def sanitize_input(text: str) -> str:
 **Rationale**:
 - User input will eventually be used in LLM prompts
 - Defense in depth - sanitize at API boundary
+- Prevents cost/memory explosions from oversized payloads
 - More sophisticated sanitization can be added as LLM integration is built
 
 ## Component Architecture
