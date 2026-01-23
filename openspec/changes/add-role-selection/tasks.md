@@ -11,7 +11,7 @@ Implementation tasks for the Role Selection feature following TDD approach. Task
 
 ## Backend Tasks
 
-### Task 1: Add predefined roles configuration
+### Task 1: Add predefined roles configuration ✅
 **Priority**: P0 (Blocking)
 **Files**: `backend/app/config.py`
 
@@ -32,7 +32,7 @@ PREDEFINED_ROLES = [
 
 ---
 
-### Task 2: Create GET /api/roles endpoint (TDD)
+### Task 2: Create GET /api/roles endpoint (TDD) ✅
 **Priority**: P0
 **Files**:
 - `backend/tests/test_roles.py` (write first)
@@ -48,7 +48,7 @@ PREDEFINED_ROLES = [
 
 ---
 
-### Task 3: Create Pydantic schemas for user selection
+### Task 3: Create Pydantic schemas for user selection ✅
 **Priority**: P0
 **Files**: `backend/app/schemas/user_selection.py`
 
@@ -61,7 +61,7 @@ Create request and response models:
 
 ---
 
-### Task 4: Create input sanitization utility
+### Task 4: Create input sanitization utility ✅
 **Priority**: P1
 **Files**:
 - `backend/tests/test_sanitization.py` (write first)
@@ -108,7 +108,7 @@ End-to-end test:
 
 ## Frontend Tasks
 
-### Task 7: Create TypeScript types for API
+### Task 7: Create TypeScript types for API ✅
 **Priority**: P0
 **Files**: `frontend/src/types/api.ts`
 
