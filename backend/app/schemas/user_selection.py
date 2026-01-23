@@ -2,7 +2,6 @@ import re
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.config import PREDEFINED_ROLES
 from app.utils.sanitization import sanitize_input
 
 EMOJI_PATTERN = re.compile(
@@ -15,7 +14,6 @@ EMOJI_PATTERN = re.compile(
     r"]+",
     flags=re.UNICODE,
 )
-VALID_ROLE_IDS = frozenset(role["id"] for role in PREDEFINED_ROLES)
 
 
 class UserSelectionRequest(BaseModel):
@@ -39,16 +37,8 @@ class UserSelectionRequest(BaseModel):
             raise ValueError("Company name is required")
         if EMOJI_PATTERN.search(v):
             raise ValueError("Company name cannot contain emojis")
-        return v
-
-    @field_validator("role")
-    @classmethod
-    def validate_role(cls, v: str) -> str:
-        if v not in VALID_ROLE_IDS:
-            raise ValueError(
-                f"Invalid role. Must be one of: {', '.join(sorted(VALID_ROLE_IDS))}"
-            )
-        return v
+        # Sanitize for LLM safety (normalize whitespace)
+        return sanitize_input(v, max_length=100)
 
     @field_validator("role_description")
     @classmethod

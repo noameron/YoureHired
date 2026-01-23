@@ -7,9 +7,7 @@ from app.main import app
 
 @pytest.fixture
 async def client():
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
 
 
@@ -143,7 +141,6 @@ class TestRolesInvariants:
 
         # THEN all role IDs use lowercase letters, numbers, and underscores only
         import re
+
         snake_case_pattern = re.compile(r"^[a-z][a-z0-9_]*$")
-        assert all(
-            snake_case_pattern.match(role["id"]) for role in data["roles"]
-        )
+        assert all(snake_case_pattern.match(role["id"]) for role in data["roles"])

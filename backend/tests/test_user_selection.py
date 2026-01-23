@@ -8,9 +8,7 @@ from app.main import app
 
 @pytest.fixture
 async def client():
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
 
 
@@ -173,7 +171,7 @@ class TestCompanyNameValidation:
         response = await client.post(
             "/api/user-selection",
             json={
-                "company_name": "Google Inc",
+                "company_name": "Google 🚀 Inc",
                 "role": "backend_developer",
             },
         )
