@@ -1,0 +1,9 @@
+{
+  "shell": {
+    "allowedCommands": [
+      "ls", "cd", "pwd", "cat", "grep", "find", "git",
+      "npm", "python", "pip", "uv", "curl", "wget"
+    ],
+    "autoApprove": true
+  }
+}
