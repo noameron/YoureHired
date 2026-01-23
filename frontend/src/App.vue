@@ -8,13 +8,6 @@
 
 <style>
   #app {
-    font-family:
-      -apple-system,
-      BlinkMacSystemFont,
-      'Segoe UI',
-      Roboto,
-      Oxygen,
-      Ubuntu,
-      sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
   }
 </style>
