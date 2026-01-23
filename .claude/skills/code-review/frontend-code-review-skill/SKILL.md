@@ -1,6 +1,6 @@
 ---
 name: frontend-code-review-skill
-description: Conducts thorough code review on Vue 3 + TypeScript frontend changes. Checks TypeScript strictness (no 'any'), Vue Composition API patterns, SOLID principles, clean code, security, performance, and enforces max 5 files per PR. Used exclusively by pr-review-agent for frontend/ directory changes.
+description: Conducts thorough code review on Vue 3 + TypeScript frontend changes. Checks TypeScript strictness (no 'any'), Vue Composition API patterns, SOLID principles, clean code, security, performance, and enforces max 5 files per PR. Used exclusively by pr-review for frontend/ directory changes.
 user-invocable: false
 allowed-tools: Bash, Read, Grep, Glob
 allowed-prompts:

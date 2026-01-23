@@ -1,5 +1,5 @@
 ---
-name: pr-review-agent
+name: pr-review
 description: "Use this agent when the user requests a code review, asks to 'go over code', 'review my changes', 'check my code', 'look at what I wrote', 'review this', 'review PR', or uses any similar phrasing suggesting they want feedback on recently written code. This agent reviews both frontend (Vue 3) and backend (FastAPI) code changes.
 
 Examples:
@@ -7,29 +7,29 @@ Examples:
 <example>
 Context: User has just finished implementing a new Vue component.
 user: \"Can you review the code I just wrote?\"
-assistant: \"I'll use the pr-review-agent to review your recent code changes.\"
-<Task tool invocation to launch pr-review-agent>
+assistant: \"I'll use the pr-review to review your recent code changes.\"
+<Task tool invocation to launch pr-review>
 </example>
 
 <example>
 Context: User completed changes to a FastAPI endpoint.
 user: \"Please go over my changes\"
-assistant: \"Let me launch the pr-review-agent to review your code changes.\"
-<Task tool invocation to launch pr-review-agent>
+assistant: \"Let me launch the pr-review to review your code changes.\"
+<Task tool invocation to launch pr-review>
 </example>
 
 <example>
 Context: User just refactored both frontend and backend code.
 user: \"code review\"
-assistant: \"I'll invoke the pr-review-agent to perform a thorough code review.\"
-<Task tool invocation to launch pr-review-agent>
+assistant: \"I'll invoke the pr-review to perform a thorough code review.\"
+<Task tool invocation to launch pr-review>
 </example>
 
 <example>
 Context: User finished adding a new API route with corresponding frontend.
 user: \"Can you check what I just implemented?\"
-assistant: \"I'll use the pr-review-agent to review your implementation.\"
-<Task tool invocation to launch pr-review-agent>
+assistant: \"I'll use the pr-review to review your implementation.\"
+<Task tool invocation to launch pr-review>
 </example>"
 tools: Bash, Glob, Grep, Read, Edit, Write, WebFetch, WebSearch, Skill
 model: opus

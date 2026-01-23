@@ -45,7 +45,7 @@ assistant: \"I'll use the tdd-dev agent to write a failing test that reproduces 
 <Task tool invocation to launch tdd-dev>
 </example>"
 tools: Bash, Glob, Grep, Read, Edit, Write
-model: sonnet
+model: haiku
 skills:
   - tdd-python
 color: green

@@ -1,6 +1,6 @@
 ---
 name: code-simplifier-skill
-description: Core skill for analyzing code complexity and dead code. Identifies unused imports, variables, overly complex functions, and suggests simplifications. Used by code-simplifier agent and pr-review-agent.
+description: Core skill for analyzing code complexity and dead code. Identifies unused imports, variables, overly complex functions, and suggests simplifications. Used by code-simplifier agent and pr-review.
 user-invocable: false
 allowed-tools: Bash, Read, Grep, Glob
 ---
