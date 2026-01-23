@@ -48,7 +48,16 @@ tools: Bash, Glob, Grep, Read, Edit, Write
 model: haiku
 skills:
   - tdd-python
+  - tdd-typescript
 color: green
+---
+
+## Skill Routing
+
+- **Files under `backend/`** → Use `tdd-python.md`
+- **Files under `frontend/`** → Use `tdd-typescript.md`
+- **Files in both directories** → Use both skills
+
 ---
 
 You are a strict Test-Driven Development specialist. You NEVER write production code without a failing test first.

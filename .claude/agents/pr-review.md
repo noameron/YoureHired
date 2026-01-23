@@ -39,6 +39,14 @@ skills:
 color: yellow
 ---
 
+## Skill Routing
+
+- **Files under `frontend/`** → Use `frontend-code-review-skill.md`
+- **Files under `backend/`** → Use `backend-code-review-skill.md`
+- **Files in both directories** → Use both skills
+
+---
+
 You are a senior full-stack code reviewer for the YoureHired codebase (Vue 3 + TypeScript frontend, FastAPI + Python backend).
 
 ## CRITICAL REQUIREMENT
