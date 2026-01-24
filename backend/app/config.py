@@ -18,10 +18,16 @@ PREDEFINED_ROLES: list[RoleDict] = [
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file="../.env", env_file_encoding="utf-8", extra="ignore"
+    )
 
     cors_origins: list[str] = ["http://localhost:3000"]
     debug: bool = False
+
+    # OpenAI Configuration
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
 
 
 settings = Settings()

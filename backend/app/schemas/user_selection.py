@@ -1,19 +1,7 @@
 import re
+from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
-
-from app.utils.sanitization import sanitize_input
-
-EMOJI_PATTERN = re.compile(
-    r"[\U0001F600-\U0001F64F"  # emoticons
-    r"\U0001F300-\U0001F5FF"  # symbols & pictographs
-    r"\U0001F680-\U0001F6FF"  # transport & map symbols
-    r"\U0001F1E0-\U0001F1FF"  # flags
-    r"\U00002702-\U000027B0"  # dingbats
-    r"\U000024C2-\U0001F251"  # enclosed characters
-    r"]+",
-    flags=re.UNICODE,
-)
 
 
 class UserSelectionRequest(BaseModel):
@@ -21,10 +9,10 @@ class UserSelectionRequest(BaseModel):
         ...,
         min_length=2,
         max_length=100,
-        description="Company name (2-100 chars, no emojis)",
+        description="Company name (2-100 characters, no emojis or repeated symbols)",
     )
     role: str = Field(..., description="Role ID from predefined roles")
-    role_description: str | None = Field(
+    role_description: Optional[str] = Field(
         None,
         description="Optional role description (30-8000 characters if provided)",
     )
@@ -35,30 +23,52 @@ class UserSelectionRequest(BaseModel):
         v = v.strip()
         if not v:
             raise ValueError("Company name is required")
-        if EMOJI_PATTERN.search(v):
+        if len(v) < 2:
+            raise ValueError("Company name must be at least 2 characters")
+        if len(v) > 100:
+            raise ValueError("Company name must be at most 100 characters")
+
+        # Check for emojis (Unicode emoji ranges)
+        emoji_pattern = re.compile(
+            r"[\U0001F600-\U0001F64F"  # emoticons
+            r"\U0001F300-\U0001F5FF"  # symbols & pictographs
+            r"\U0001F680-\U0001F6FF"  # transport & map symbols
+            r"\U0001F1E0-\U0001F1FF"  # flags
+            r"\U00002702-\U000027B0"  # dingbats
+            r"\U0001F900-\U0001F9FF"  # supplemental symbols
+            r"\U0001FA00-\U0001FA6F"  # chess symbols
+            r"\U0001FA70-\U0001FAFF"  # symbols extended-A
+            r"\U00002600-\U000026FF"  # misc symbols
+            r"]"
+        )
+        if emoji_pattern.search(v):
             raise ValueError("Company name cannot contain emojis")
-        # Sanitize for LLM safety (normalize whitespace)
-        return sanitize_input(v, max_length=100)
+
+        # Check for repeated symbols (3+ consecutive same non-alphanumeric character)
+        if re.search(r"([^\w\s])\1{2,}", v):
+            raise ValueError("Company name cannot contain repeated symbols")
+
+        return v
 
     @field_validator("role_description")
     @classmethod
-    def validate_role_description(cls, v: str | None) -> str | None:
+    def validate_role_description(cls, v: Optional[str]) -> Optional[str]:
         if v is None:
             return None
         v = v.strip()
         if not v:
             return None
-        if len(v) < 30:
-            raise ValueError("Role description must be at least 30 characters")
+        if len(v) < 10:
+            raise ValueError("Role description must be at least 10 characters")
         if len(v) > 8000:
             raise ValueError("Role description must be at most 8000 characters")
-        return sanitize_input(v)
+        return v
 
 
 class UserSelectionData(BaseModel):
     company_name: str
     role: str
-    role_description: str | None
+    role_description: Optional[str]
     session_id: str
 
 

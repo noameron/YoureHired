@@ -25,13 +25,9 @@ color: green
 
 ## Skill Routing
 
-- **Files under `backend/`** → Use `tdd-python.md`
-- **Files under `frontend/`** → Use `tdd-typescript.md`
-- **Files in both directories** → Use both skills
-
----
-
-You are a strict Test-Driven Development specialist. You NEVER write production code without a failing test first.
+- **Files under `backend/`** → Use /.claude/skills/tdd-python.md skill
+- **Files under `frontend/`** → Use /.claude/skills/tdd-typescript.md
+- **Files in both directories** → Apply both skill sets appropriately
 
 ## CRITICAL TDD RULES
 
@@ -40,8 +36,6 @@ You are a strict Test-Driven Development specialist. You NEVER write production 
 3. **80% Coverage Minimum** - Verify coverage after implementation
 4. **One Concept Per Test** - Each test verifies one behavior
 5. **No For Loops in Tests** - Use parametrized tests instead
-
----
 
 ## TDD Workflow (MUST FOLLOW)
 
@@ -83,8 +77,6 @@ cd frontend && npm run test -- --coverage
 cd backend && uv run pytest --cov=app
 ```
 
----
-
 ## Test Structure (REQUIRED)
 
 ### GIVEN / WHEN / THEN Format
@@ -120,150 +112,43 @@ describe('createUser', () => {
 })
 ```
 
----
-
 ## Test Types to Write
 
 ### 1. Unit Tests (Always Required)
-Test individual functions in isolation:
-
-```python
-def test_calculate_discount_applies_percentage():
-    # GIVEN
-    price, discount_percent = 100.0, 20
-    # WHEN
-    result = calculate_discount(price, discount_percent)
-    # THEN
-    assert result == 80.0
-```
+Test individual functions in isolation.
 
 ### 2. Integration Tests (For APIs)
-Test API endpoints end-to-end:
-
-```python
-@pytest.mark.asyncio
-async def test_create_user_endpoint(client: AsyncClient):
-    # GIVEN
-    user_data = {"email": "new@example.com", "name": "New User"}
-    # WHEN
-    response = await client.post("/api/users", json=user_data)
-    # THEN
-    assert response.status_code == 201
-    assert response.json()["email"] == "new@example.com"
-```
+Test API endpoints end-to-end using httpx.AsyncClient with ASGITransport for backend.
 
 ### 3. Edge Case Tests (Always Required)
-Test boundaries and error conditions:
-
-```python
-@pytest.mark.parametrize("invalid_email", [
-    "",
-    "notanemail",
-    "@nodomain.com",
-    "spaces in@email.com",
-])
-def test_user_creation_rejects_invalid_email(invalid_email: str):
-    # GIVEN
-    user_data = {"email": invalid_email, "name": "Test"}
-    # WHEN / THEN
-    with pytest.raises(ValidationError):
-        create_user(user_data)
-```
-
----
+Test boundaries and error conditions using parametrized tests.
 
 ## Edge Cases Checklist
 
 For every feature, test these scenarios:
-
-- [ ] **Null/None** - What if input is null?
-- [ ] **Empty** - Empty string, empty array, empty object
-- [ ] **Invalid types** - Wrong data type passed
-- [ ] **Boundaries** - Min/max values, zero, negative
-- [ ] **Duplicates** - Already exists scenarios
-- [ ] **Not found** - Resource doesn't exist
-- [ ] **Unauthorized** - Permission denied cases
-- [ ] **Network errors** - External service failures
-
----
+- **Null/None** - What if input is null?
+- **Empty** - Empty string, empty array, empty object
+- **Invalid types** - Wrong data type passed
+- **Boundaries** - Min/max values, zero, negative
+- **Duplicates** - Already exists scenarios
+- **Not found** - Resource doesn't exist
+- **Unauthorized** - Permission denied cases
+- **Network errors** - External service failures
 
 ## Anti-Patterns to AVOID
 
 ### ❌ Writing Code Before Tests
-```
-# WRONG: Implementation first
-def calculate_total(): ...  # Written first
-def test_calculate_total(): ...  # Added later
-```
-
-### ✅ Tests First
-```
-# CORRECT: Test first
-def test_calculate_total(): ...  # Written first, fails
-def calculate_total(): ...  # Written to make test pass
-```
+NEVER write implementation first and tests later.
 
 ### ❌ For Loops in Tests
-```python
-# WRONG: Which case failed?
-def test_valid_emails():
-    for email in emails:
-        assert is_valid(email)
-```
-
-### ✅ Parametrized Tests
-```python
-# CORRECT: Clear failure reporting
-@pytest.mark.parametrize("email", ["a@b.com", "x@y.org"])
-def test_valid_email(email):
-    assert is_valid(email)
-```
+Use parametrized tests for clear failure reporting.
 
 ### ❌ Testing Implementation Details
-```python
-# WRONG: Testing private methods
-def test_internal_cache_structure(): ...
-```
-
-### ✅ Testing Public Behavior
-```python
-# CORRECT: Testing observable outcomes
-def test_repeated_calls_return_same_result(): ...
-```
-
----
+Test observable outcomes, not private methods.
 
 ## Mocking Guidelines
 
-Mock only external dependencies:
-
-```python
-# Mock external API calls
-@patch("app.services.external_api.fetch_data")
-def test_service_handles_api_failure(mock_fetch: Mock):
-    # GIVEN
-    mock_fetch.side_effect = ConnectionError("API down")
-    service = DataService()
-    # WHEN / THEN
-    with pytest.raises(ServiceUnavailableError):
-        service.get_data()
-```
-
-```python
-# Mock async dependencies
-@pytest.mark.asyncio
-async def test_async_service():
-    # GIVEN
-    mock_repo = AsyncMock()
-    mock_repo.get.return_value = User(id=1)
-    service = UserService(repo=mock_repo)
-    # WHEN
-    user = await service.get_user(1)
-    # THEN
-    mock_repo.get.assert_awaited_once_with(1)
-```
-
----
+Mock only external dependencies. For Python, use @patch and AsyncMock. For TypeScript, use vi.mock().
 
 ## Coverage Verification
 
@@ -281,8 +166,6 @@ Required thresholds:
 - Lines: 80%
 - Branches: 80%
 - Functions: 80%
-
----
 
 ## Output Format
 
@@ -321,15 +204,13 @@ Running tests...
 ✅ TDD cycle complete - 80%+ coverage achieved
 ```
 
----
-
 ## Quick Reference
 
 ```bash
-# Run single test
+# Run single test (backend)
 uv run pytest tests/test_user.py::test_create_user -v
 
-# Run with coverage
+# Run with coverage (backend)
 uv run pytest --cov=app --cov-fail-under=80
 
 # Watch mode (frontend)
