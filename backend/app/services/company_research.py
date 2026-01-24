@@ -1,11 +1,20 @@
 import asyncio
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 from agents import Runner
-from app.schemas.company_info import SearchPlan, SearchQuery, CompanySummary
+from agents.exceptions import (
+    InputGuardrailTripwireTriggered,
+    OutputGuardrailTripwireTriggered,
+)
+
+from app.agents.guardrails.exceptions import (
+    SAFE_INJECTION_MESSAGE,
+    SAFE_LEAKAGE_MESSAGE,
+)
 from app.agents.planner_agent import planner_agent
 from app.agents.search_agent import search_agent
 from app.agents.summarizer_agent import summarizer_agent
+from app.schemas.company_info import CompanySummary, SearchPlan, SearchQuery
 
 AGENT_TIMEOUT = 60  # seconds
 
@@ -13,7 +22,7 @@ AGENT_TIMEOUT = 60  # seconds
 async def research_company_stream(
     company_name: str,
     role: str
-) -> AsyncGenerator[dict, None]:
+) -> AsyncGenerator[dict[str, object], None]:
     """
     Stream research progress and final results with timeout.
     Yields dict events: {"type": "status"|"complete"|"error", ...}
@@ -32,7 +41,11 @@ async def research_company_stream(
         # Step 2: Execute searches sequentially, streaming each one
         search_results = []
         for i, item in enumerate(search_plan.searches, 1):
-            yield {"type": "status", "message": f"Searching ({i}/{len(search_plan.searches)}): {item.reason}"}
+            search_count = len(search_plan.searches)
+            yield {
+                "type": "status",
+                "message": f"Searching ({i}/{search_count}): {item.reason}",
+            }
             try:
                 search_input = f"Search term: {item.query}\nReason: {item.reason}"
                 result = await asyncio.wait_for(
@@ -40,8 +53,11 @@ async def research_company_stream(
                     timeout=AGENT_TIMEOUT
                 )
                 search_results.append(result.final_output)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 yield {"type": "status", "message": f"Search {i} timed out, continuing..."}
+            except (InputGuardrailTripwireTriggered, OutputGuardrailTripwireTriggered):
+                # Re-raise guardrail exceptions to be handled at the top level
+                raise
             except Exception:
                 yield {"type": "status", "message": f"Search {i} failed, continuing..."}
 
@@ -61,7 +77,11 @@ async def research_company_stream(
         # Final result
         yield {"type": "complete", "data": summary_result.final_output.model_dump()}
 
-    except asyncio.TimeoutError:
+    except InputGuardrailTripwireTriggered:
+        yield {"type": "error", "message": SAFE_INJECTION_MESSAGE}
+    except OutputGuardrailTripwireTriggered:
+        yield {"type": "error", "message": SAFE_LEAKAGE_MESSAGE}
+    except TimeoutError:
         yield {"type": "error", "message": "Research timed out. Please try again."}
     except Exception as e:
         yield {"type": "error", "message": f"Research failed: {str(e)}"}
@@ -74,6 +94,10 @@ async def research_company(company_name: str, role: str) -> CompanySummary:
     Args:
         company_name: Validated company name from session
         role: Validated role from session
+
+    Raises:
+        InputGuardrailTripwireTriggered: If input contains potential injection
+        OutputGuardrailTripwireTriggered: If output contains potential leakage
     """
     # Step 1: Plan searches
     plan_input = f"Company: {company_name}\nRole: {role}"
@@ -84,7 +108,7 @@ async def research_company(company_name: str, role: str) -> CompanySummary:
     async def run_search(item: SearchQuery) -> str:
         search_input = f"Search term: {item.query}\nReason: {item.reason}"
         result = await Runner.run(search_agent, search_input)
-        return result.final_output
+        return str(result.final_output)
 
     tasks = [asyncio.create_task(run_search(s)) for s in search_plan.searches]
     search_results = await asyncio.gather(*tasks)
@@ -94,4 +118,5 @@ async def research_company(company_name: str, role: str) -> CompanySummary:
     summary_input = f"Company: {company_name}\nRole: {role}\n\nResearch:\n{combined}"
     summary_result = await Runner.run(summarizer_agent, summary_input)
 
-    return summary_result.final_output
+    result: CompanySummary = summary_result.final_output
+    return result

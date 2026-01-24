@@ -1,7 +1,7 @@
 """Tests for the company research streaming service."""
 
 import asyncio
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, patch, MagicMock
 
 import pytest
@@ -534,16 +534,22 @@ class TestResearchCompanyStreamEdgeCases:
 
         captured_input = []
 
+        search_call_count = 0
+
         async def mock_runner_run(agent, input_str):
+            nonlocal search_call_count
             if "Research:" in input_str:
                 captured_input.append(input_str)
                 return MockRunnerResult(summary)
             elif "Company:" in input_str:
                 return MockRunnerResult(search_plan)
-            elif "First" not in input_str:
-                return MockRunnerResult(search_result_1)
             else:
-                return MockRunnerResult(search_result_2)
+                # Search agent calls - alternate between results
+                search_call_count += 1
+                if search_call_count == 1:
+                    return MockRunnerResult(search_result_1)
+                else:
+                    return MockRunnerResult(search_result_2)
 
         with patch("app.services.company_research.Runner.run", side_effect=mock_runner_run):
             # WHEN streaming research
