@@ -5,6 +5,7 @@ module.exports = {
     node: true,
     es2020: true
   },
+  parser: 'vue-eslint-parser',
   extends: [
     'eslint:recommended',
     'plugin:vue/vue3-recommended',
@@ -13,7 +14,8 @@ module.exports = {
   parserOptions: {
     ecmaVersion: 'latest',
     parser: '@typescript-eslint/parser',
-    sourceType: 'module'
+    sourceType: 'module',
+    extraFileExtensions: ['.vue']
   },
   plugins: ['vue', '@typescript-eslint'],
   rules: {
