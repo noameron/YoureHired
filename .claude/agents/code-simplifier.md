@@ -1,8 +1,7 @@
 ---
 name: code-simplifier
-description: "Simplifies code by removing dead imports, unused variables, and reducing complexity in recent git changes. Use when the user asks to 'simplify code', 'clean up code', 'remove dead code', 'reduce complexity', or wants to tidy up before a review.
-
-tools: Bash, Glob, Grep, Read
+description: "Use this agent when the user asks to 'simplify code', 'clean up code', 'remove dead code', 'reduce complexity', or wants to tidy up before a review. Also use when the user mentions dead imports, unused variables, or wants to prepare code for submission."
+tools: Bash, Glob, Grep, Read, Edit, Write, NotebookEdit, WebFetch, WebSearch, Skill, TaskCreate, TaskGet, TaskUpdate, TaskList, ListMcpResourcesTool, ReadMcpResourceTool
 model: sonnet
 color: red
 ---
