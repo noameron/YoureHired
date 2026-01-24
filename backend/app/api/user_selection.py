@@ -4,6 +4,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from app.config import PREDEFINED_ROLES
+from app.services import session_store
 from app.schemas.user_selection import (
     ErrorDetails,
     UserSelectionData,
@@ -30,27 +31,33 @@ async def create_user_selection(
     request: UserSelectionRequest,
 ) -> UserSelectionResponse | JSONResponse:
     """Submit user's company and role selection to start a practice session."""
-    # Validate role and return custom 400 error for invalid role
     role_label = ROLE_ID_TO_LABEL.get(request.role)
     if role_label is None:
-        error_response = UserSelectionError(
-            error=ErrorDetails(
-                code="VALIDATION_ERROR",
-                message="Invalid role selection",
-                details={"role": f"Role '{request.role}' is not valid"},
-            )
+        return JSONResponse(
+            status_code=400,
+            content=UserSelectionError(
+                error=ErrorDetails(
+                    code="VALIDATION_ERROR",
+                    message="Invalid role selection",
+                    details={"role": f"Role '{request.role}' is not valid"},
+                )
+            ).model_dump(),
         )
-        return JSONResponse(status_code=400, content=error_response.model_dump())
 
-    # Generate unique session ID
     session_id = str(uuid.uuid4())
 
-    # Build response data
-    data = UserSelectionData(
+    session_store.create(
+        session_id=session_id,
         company_name=request.company_name,
         role=role_label,
         role_description=request.role_description,
-        session_id=session_id,
     )
 
-    return UserSelectionResponse(data=data)
+    return UserSelectionResponse(
+        data=UserSelectionData(
+            company_name=request.company_name,
+            role=role_label,
+            role_description=request.role_description,
+            session_id=session_id,
+        )
+    )
