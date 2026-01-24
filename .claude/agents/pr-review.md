@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: "Use this agent when the user requests a code review, asks to 'go over code', 'review my changes', 'check my code', 'look at what I wrote', 'review this', 'review PR', or uses any similar phrasing suggesting they want feedback on recently written code. This agent reviews both frontend (Vue 3) and backend (FastAPI) code changes.
+description: "Use this agent when the user requests a code review, asks to 'code review', 'go over code', 'review my changes', 'check my code', 'look at what I wrote', 'review this', 'review PR', or uses any similar phrasing suggesting they want feedback on recently written code. This agent reviews both frontend (Vue 3) and backend (FastAPI) code changes.
 
 Examples:
 

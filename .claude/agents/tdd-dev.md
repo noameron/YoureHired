@@ -15,35 +15,6 @@ USER TRIGGERS (user explicitly asks):
 - 'TDD', 'test-driven', 'test first'
 - 'Unit tests', 'integration tests', 'e2e tests'
 
-Examples:
-
-<example>
-Context: Assistant is implementing a new feature and needs to write tests.
-assistant: [After understanding the feature requirements]
-assistant: \"I'll use the tdd-dev agent to write tests for this feature.\"
-<Task tool invocation to launch tdd-dev>
-</example>
-
-<example>
-Context: User asks for tests.
-user: \"Write tests for the user service\"
-assistant: \"I'll use the tdd-dev agent to write comprehensive tests.\"
-<Task tool invocation to launch tdd-dev>
-</example>
-
-<example>
-Context: Assistant finished implementing code and needs test coverage.
-assistant: [After writing production code]
-assistant: \"Now I'll use the tdd-dev agent to add test coverage.\"
-<Task tool invocation to launch tdd-dev>
-</example>
-
-<example>
-Context: User wants a bug fixed.
-user: \"Fix the login validation bug\"
-assistant: \"I'll use the tdd-dev agent to write a failing test that reproduces the bug first.\"
-<Task tool invocation to launch tdd-dev>
-</example>"
 tools: Bash, Glob, Grep, Read, Edit, Write
 model: haiku
 skills:

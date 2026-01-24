@@ -2,28 +2,6 @@
 name: code-simplifier
 description: "Simplifies code by removing dead imports, unused variables, and reducing complexity in recent git changes. Use when the user asks to 'simplify code', 'clean up code', 'remove dead code', 'reduce complexity', or wants to tidy up before a review.
 
-Examples:
-
-<example>
-Context: User wants to clean up before submitting.
-user: \"Clean up my code before I submit\"
-assistant: \"I'll use the code-simplifier agent to analyze and simplify your changes.\"
-<Task tool invocation to launch code-simplifier>
-</example>
-
-<example>
-Context: User mentions dead code.
-user: \"Can you remove any dead code from my changes?\"
-assistant: \"I'll launch code-simplifier to find and remove dead code.\"
-<Task tool invocation to launch code-simplifier>
-</example>
-
-<example>
-Context: User wants to simplify.
-user: \"simplify my code\"
-assistant: \"I'll use the code-simplifier agent to identify simplification opportunities.\"
-<Task tool invocation to launch code-simplifier>
-</example>"
 tools: Bash, Glob, Grep, Read, Edit
 model: sonnet
 skills:
