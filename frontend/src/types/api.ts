@@ -38,3 +38,40 @@ export interface UserSelectionError {
 }
 
 export type UserSelectionResult = UserSelectionResponse | UserSelectionError
+
+// Company research types
+export interface TechStack {
+  languages: string[]
+  frameworks: string[]
+  tools: string[]
+}
+
+export interface CompanySummary {
+  name: string
+  industry: string | null
+  description: string
+  size: string | null
+  tech_stack: TechStack | null
+  engineering_culture: string | null
+  recent_news: string[]
+  interview_tips: string | null
+  sources: string[]
+}
+
+// Streaming event types
+export interface StreamStatusEvent {
+  type: 'status'
+  message: string
+}
+
+export interface StreamCompleteEvent {
+  type: 'complete'
+  data: CompanySummary
+}
+
+export interface StreamErrorEvent {
+  type: 'error'
+  message: string
+}
+
+export type StreamEvent = StreamStatusEvent | StreamCompleteEvent | StreamErrorEvent

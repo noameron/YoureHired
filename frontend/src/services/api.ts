@@ -1,4 +1,9 @@
-import type { RolesResponse, UserSelectionRequest, UserSelectionResult } from '@/types/api'
+import type {
+  RolesResponse,
+  UserSelectionRequest,
+  UserSelectionResult,
+  StreamEvent
+} from '@/types/api'
 
 const API_BASE = '/api'
 
@@ -39,4 +44,37 @@ export async function submitUserSelection(
 
   // For other errors (422, 500, etc.), throw
   throw new Error(`Failed to submit user selection: ${response.status} ${response.statusText}`)
+}
+
+/**
+ * Stream company research progress via Server-Sent Events.
+ * Yields events as they arrive from the backend.
+ */
+export async function* streamCompanyResearch(
+  sessionId: string
+): AsyncGenerator<StreamEvent> {
+  const response = await fetch(`${API_BASE}/company-research/${sessionId}/stream`)
+
+  if (!response.ok) {
+    throw new Error(`Stream failed: ${response.status}`)
+  }
+
+  const reader = response.body!.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() || '' // Keep incomplete line in buffer
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        yield JSON.parse(line.slice(6)) as StreamEvent
+      }
+    }
+  }
 }
