@@ -94,3 +94,10 @@ End each review with:
 - If only configuration files changed, still apply relevant review standards
 - If changes include test files, verify tests are meaningful and cover edge cases
 - If changes span multiple unrelated features, organize review by feature area
+
+## Edge Cases
+
+- If no changes are detected, inform the user and ask if they want to review specific files
+- If only configuration files changed, still apply relevant review standards
+- If changes include test files, verify tests are meaningful and cover edge cases
+- If changes span multiple unrelated features, organize review by feature area
