@@ -1,10 +1,12 @@
 <script setup lang="ts">
   import { ref, onMounted } from 'vue'
+  import { useRouter } from 'vue-router'
   import { fetchRoles, submitUserSelection } from '@/services/api'
   import { useUserSelectionStore } from '@/stores/userSelection'
   import type { Role, UserSelectionError } from '@/types/api'
 
   const store = useUserSelectionStore()
+  const router = useRouter()
 
   // Form state
   const companyName = ref('')
@@ -96,6 +98,7 @@
           sessionId: result.data.session_id
         })
         isSuccess.value = true
+        router.push('/practice')
       } else {
         // Handle validation error from API
         const errorResult = result as UserSelectionError
