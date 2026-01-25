@@ -1,6 +1,8 @@
 # YoureHired
 
-Practice real interview-style tasks tailored to your target company and role. Pick a company and role, then the app researches the company, summarizes what matters, and sets you up to practice with relevant context.
+**🚧 Work in Progress** - Practice real interview-style tasks tailored to your target company and role. Pick a company and role, then the app researches the company, summarizes what matters, and sets you up to practice with relevant context.
+
+Currently, I am developing the AI agents that create tailored coding tasks and challenges based on your target role and company research. Later, I will build an evaluator agent to assess your solutions and provide detailed feedback on your performance.
 
 ## What It Does
 
