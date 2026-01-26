@@ -1,9 +1,9 @@
 import type {
   RolesResponse,
   UserSelectionRequest,
-  UserSelectionResult,
-  StreamEvent
+  UserSelectionResult
 } from '@/types/api'
+import type { DrillStreamEvent } from './types'
 
 const API_BASE = '/api'
 
@@ -47,13 +47,14 @@ export async function submitUserSelection(
 }
 
 /**
- * Stream company research progress via Server-Sent Events.
+ * Stream drill generation progress via Server-Sent Events.
+ * Runs company research internally if needed, then generates drill.
  * Yields events as they arrive from the backend.
  */
-export async function* streamCompanyResearch(
+export async function* streamDrillGeneration(
   sessionId: string
-): AsyncGenerator<StreamEvent> {
-  const response = await fetch(`${API_BASE}/company-research/${sessionId}/stream`)
+): AsyncGenerator<DrillStreamEvent> {
+  const response = await fetch(`${API_BASE}/generate-drill/${sessionId}/stream`)
 
   if (!response.ok) {
     throw new Error(`Stream failed: ${response.status}`)
@@ -73,7 +74,7 @@ export async function* streamCompanyResearch(
 
     for (const line of lines) {
       if (line.startsWith('data: ')) {
-        yield JSON.parse(line.slice(6)) as StreamEvent
+        yield JSON.parse(line.slice(6)) as DrillStreamEvent
       }
     }
   }
