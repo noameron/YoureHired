@@ -1,5 +1,4 @@
-import pytest
-from app.services.session_store import SessionStore, Session
+from app.services.session_store import SessionStore
 
 
 class TestSessionStore:

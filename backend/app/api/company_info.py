@@ -3,13 +3,13 @@ import json
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
-from app.services import research_company
-from app.services.company_research import research_company_stream
 from app.schemas.company_info import (
     CompanyInfoData,
     CompanyInfoResponse,
+    CompanySummary,
 )
-from app.services import session_store
+from app.services import research_company, session_store
+from app.services.company_research import research_company_stream
 
 router = APIRouter(tags=["company-info"])
 
@@ -28,6 +28,9 @@ async def get_company_info(session_id: str) -> CompanyInfoResponse:
         company_name=session.company_name,
         role=session.role,
     )
+
+    # Store summary in session for drill generation
+    session_store.update_company_summary(session_id, summary)
 
     return CompanyInfoResponse(
         data=CompanyInfoData(
@@ -54,6 +57,13 @@ async def stream_company_research(session_id: str):
 
     async def event_generator():
         async for event in research_company_stream(session.company_name, session.role):
+            # Store company summary when research completes
+            if event.get("type") == "complete" and "data" in event:
+                try:
+                    summary = CompanySummary(**event["data"])
+                    session_store.update_company_summary(session_id, summary)
+                except Exception:
+                    pass  # Ignore invalid data, don't block the stream
             yield f"data: {json.dumps(event)}\n\n"
 
     return StreamingResponse(

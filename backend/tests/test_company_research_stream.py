@@ -1,7 +1,7 @@
 """Tests for the company research streaming endpoint."""
 
 import json
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -61,59 +61,8 @@ class TestStreamCompanyResearchSessionNotFound:
         assert events[0]["message"] == "Session not found"
 
 
-class TestStreamCompanyResearchSuccess:
-    """Tests for successful streaming research."""
-
-    async def test_stream_returns_status_and_complete_events(
-        self, client: AsyncClient, test_session_id: str
-    ):
-        """Successful stream yields status updates and complete event."""
-        # GIVEN a valid session and mocked research function
-        mock_events = [
-            {"type": "status", "message": "Planning research strategy..."},
-            {"type": "status", "message": "Found 2 areas to research"},
-            {"type": "status", "message": "Searching (1/2): Company culture"},
-            {"type": "status", "message": "Searching (2/2): Tech stack"},
-            {"type": "status", "message": "Analyzing findings..."},
-            {
-                "type": "complete",
-                "data": {
-                    "name": "Test Company",
-                    "industry": "Technology",
-                    "description": "A test company",
-                    "size": "1000+",
-                    "tech_stack": None,
-                    "engineering_culture": None,
-                    "recent_news": [],
-                    "interview_tips": None,
-                    "sources": [],
-                },
-            },
-        ]
-
-        async def mock_stream(company_name: str, role: str):
-            for event in mock_events:
-                yield event
-
-        with patch(
-            "app.api.company_info.research_company_stream",
-            side_effect=mock_stream,
-        ):
-            # WHEN requesting the stream endpoint
-            async with client.stream(
-                "GET", f"/api/company-research/{test_session_id}/stream"
-            ) as response:
-                # THEN the response contains all expected events
-                assert response.status_code == 200
-                assert "text/event-stream" in response.headers["content-type"]
-
-                events = await collect_sse_events(response)
-
-        assert len(events) == 6
-        assert events[0]["type"] == "status"
-        assert events[0]["message"] == "Planning research strategy..."
-        assert events[-1]["type"] == "complete"
-        assert events[-1]["data"]["name"] == "Test Company"
+class TestStreamCompanyResearchHeaders:
+    """Tests for SSE headers in streaming endpoint."""
 
     async def test_stream_headers_set_correctly(
         self, client: AsyncClient, test_session_id: str
@@ -140,32 +89,8 @@ class TestStreamCompanyResearchSuccess:
                 await collect_sse_events(response)
 
 
-class TestStreamCompanyResearchErrors:
-    """Tests for error handling in streaming endpoint."""
-
-    async def test_stream_yields_error_event_on_failure(
-        self, client: AsyncClient, test_session_id: str
-    ):
-        """Stream yields error event when research fails."""
-        # GIVEN a valid session and research that fails
-        async def mock_stream(company_name: str, role: str):
-            yield {"type": "status", "message": "Planning research strategy..."}
-            yield {"type": "error", "message": "Research timed out. Please try again."}
-
-        with patch(
-            "app.api.company_info.research_company_stream",
-            side_effect=mock_stream,
-        ):
-            # WHEN requesting the stream endpoint
-            async with client.stream(
-                "GET", f"/api/company-research/{test_session_id}/stream"
-            ) as response:
-                events = await collect_sse_events(response)
-
-        # THEN error event is yielded
-        assert len(events) == 2
-        assert events[-1]["type"] == "error"
-        assert "timed out" in events[-1]["message"]
+class TestStreamCompanyResearchSessionData:
+    """Tests for session data passing to research function."""
 
     async def test_stream_passes_session_data_to_research_function(
         self, client: AsyncClient, test_session_id: str

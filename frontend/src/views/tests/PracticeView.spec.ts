@@ -4,7 +4,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import PracticeView from '../PracticeView.vue'
 import { useUserSelectionStore } from '@/stores/userSelection'
 import * as api from '@/services/api'
-import type { CompanySummary, StreamEvent } from '@/types/api'
+import type { Drill, DrillStreamEvent, DrillStreamCandidateEvent } from '@/services/types'
 
 // Mock the API module
 vi.mock('@/services/api')
@@ -18,24 +18,21 @@ vi.mock('vue-router', () => ({
 }))
 
 // Test data
-const mockCompanySummary: CompanySummary = {
-  name: 'Test Corp',
-  industry: 'Technology',
-  description: 'A leading technology company.',
-  size: '1000-5000',
-  tech_stack: {
-    languages: ['TypeScript', 'Python'],
-    frameworks: ['Vue', 'FastAPI'],
-    tools: ['Docker', 'Kubernetes']
-  },
-  engineering_culture: 'Collaborative and innovative.',
-  recent_news: ['Launched new product', 'Raised Series B'],
-  interview_tips: 'Focus on system design and algorithms.',
-  sources: ['https://example.com']
+const mockDrill: Drill = {
+  title: 'Build a Rate Limiter',
+  type: 'coding',
+  difficulty: 'medium',
+  description: 'Implement a token bucket rate limiter.',
+  requirements: ['Handle concurrent requests', 'Support configurable limits'],
+  starter_code: 'class RateLimiter:\n    pass',
+  hints: ['Consider using a sliding window', 'Think about thread safety'],
+  expected_time_minutes: 45,
+  tech_stack: ['Python', 'Redis'],
+  company_context: 'Similar to rate limiting systems used at the company.'
 }
 
 // Helper to create an async generator from events
-async function* createMockStream(events: StreamEvent[]): AsyncGenerator<StreamEvent> {
+async function* createMockStream(events: DrillStreamEvent[]): AsyncGenerator<DrillStreamEvent> {
   for (const event of events) {
     yield event
   }
@@ -54,14 +51,14 @@ function setupStoreWithSession(sessionId = 'test-session-123') {
 
 // Helper to mount component with store setup and API mock
 async function mountWithStream(
-  events: StreamEvent[] | AsyncGenerator<StreamEvent>
+  events: DrillStreamEvent[] | AsyncGenerator<DrillStreamEvent>
 ): Promise<VueWrapper> {
   setupStoreWithSession()
 
   if (Array.isArray(events)) {
-    vi.mocked(api.streamCompanyResearch).mockReturnValue(createMockStream(events))
+    vi.mocked(api.streamDrillGeneration).mockReturnValue(createMockStream(events))
   } else {
-    vi.mocked(api.streamCompanyResearch).mockReturnValue(events)
+    vi.mocked(api.streamDrillGeneration).mockReturnValue(events)
   }
 
   const wrapper = mount(PracticeView)
@@ -101,13 +98,13 @@ describe('PracticeView', () => {
       setupStoreWithSession()
 
       // Create a stream that never resolves
-      const neverEndingStream = async function* (): AsyncGenerator<StreamEvent> {
+      const neverEndingStream = async function* (): AsyncGenerator<DrillStreamEvent> {
         await new Promise<void>(() => {
           // Never resolve
         })
       }
 
-      vi.mocked(api.streamCompanyResearch).mockReturnValue(neverEndingStream())
+      vi.mocked(api.streamDrillGeneration).mockReturnValue(neverEndingStream())
       const wrapper = mount(PracticeView)
 
       expect(wrapper.find('.loading-state').exists()).toBe(true)
@@ -122,103 +119,193 @@ describe('PracticeView', () => {
     })
 
     it('updates status message as events arrive', async () => {
-      const events: StreamEvent[] = [
-        { type: 'status', message: 'Planning research strategy...' },
-        { type: 'status', message: 'Searching (1/3): Company overview' },
-        { type: 'status', message: 'Analyzing findings...' }
+      const events: DrillStreamEvent[] = [
+        { type: 'status', message: 'Researching company...' },
+        { type: 'status', message: 'Generating drill candidates...' },
+        { type: 'status', message: 'Evaluating candidates...' }
       ]
 
       const wrapper = await mountWithStream(events)
 
       // After all events, should show the last status
-      expect(wrapper.find('.status').text()).toBe('Analyzing findings...')
+      expect(wrapper.find('.status').text()).toBe('Evaluating candidates...')
     })
-  })
 
-  describe('complete state', () => {
-    it('shows summary when complete event received', async () => {
-      const events: StreamEvent[] = [
-        { type: 'status', message: 'Planning...' },
-        { type: 'complete', data: mockCompanySummary }
+    it('shows candidates as they are generated', async () => {
+      const events: DrillStreamEvent[] = [
+        { type: 'status', message: 'Generating...' },
+        { type: 'candidate', generator: 'coding', title: 'Build a Rate Limiter' },
+        { type: 'candidate', generator: 'debugging', title: 'Fix Memory Leak' }
       ]
 
       const wrapper = await mountWithStream(events)
 
-      expect(wrapper.find('.summary-state').exists()).toBe(true)
+      const candidates = wrapper.findAll('.candidate-item')
+      expect(candidates).toHaveLength(2)
+      expect(candidates[0].text()).toContain('Coding')
+      expect(candidates[0].text()).toContain('Build a Rate Limiter')
+      expect(candidates[1].text()).toContain('Debugging')
+      expect(candidates[1].text()).toContain('Fix Memory Leak')
+    })
+  })
+
+  describe('complete state', () => {
+    it('shows drill when complete event received', async () => {
+      const events: DrillStreamEvent[] = [
+        { type: 'status', message: 'Generating...' },
+        { type: 'complete', data: mockDrill }
+      ]
+
+      const wrapper = await mountWithStream(events)
+
+      expect(wrapper.find('.drill-card').exists()).toBe(true)
       expect(wrapper.find('.loading-state').exists()).toBe(false)
     })
 
-    it('displays company name in summary', async () => {
-      const wrapper = await mountWithStream([{ type: 'complete', data: mockCompanySummary }])
+    it('displays drill title', async () => {
+      const wrapper = await mountWithStream([{ type: 'complete', data: mockDrill }])
 
-      expect(wrapper.find('.summary-state h1').text()).toBe('Test Corp')
+      expect(wrapper.find('.drill-card h1').text()).toBe('Build a Rate Limiter')
     })
 
-    it('displays company description', async () => {
-      const wrapper = await mountWithStream([{ type: 'complete', data: mockCompanySummary }])
+    it('displays drill metadata', async () => {
+      const wrapper = await mountWithStream([{ type: 'complete', data: mockDrill }])
 
-      expect(wrapper.find('.description').text()).toBe('A leading technology company.')
+      expect(wrapper.find('.meta').text()).toContain('Coding')
+      expect(wrapper.find('.meta').text()).toContain('medium')
+      expect(wrapper.find('.meta').text()).toContain('45 min')
+    })
+
+    it('displays drill description', async () => {
+      const wrapper = await mountWithStream([{ type: 'complete', data: mockDrill }])
+
+      expect(wrapper.find('.description').text()).toBe('Implement a token bucket rate limiter.')
+    })
+
+    it('displays company context when available', async () => {
+      const wrapper = await mountWithStream([{ type: 'complete', data: mockDrill }])
+
+      const contextSection = findSection(wrapper, 'Company Context')
+      expect(contextSection).toBeDefined()
+      expect(contextSection!.text()).toContain('Similar to rate limiting systems')
+    })
+
+    it('displays requirements', async () => {
+      const wrapper = await mountWithStream([{ type: 'complete', data: mockDrill }])
+
+      const reqSection = findSection(wrapper, 'Requirements')
+      expect(reqSection).toBeDefined()
+      expect(reqSection!.text()).toContain('Handle concurrent requests')
+      expect(reqSection!.text()).toContain('Support configurable limits')
     })
 
     it('displays tech stack when available', async () => {
-      const wrapper = await mountWithStream([{ type: 'complete', data: mockCompanySummary }])
+      const wrapper = await mountWithStream([{ type: 'complete', data: mockDrill }])
 
-      const techStackSection = findSection(wrapper, 'Tech Stack')
-      expect(techStackSection).toBeDefined()
-      expect(techStackSection!.text()).toContain('TypeScript')
-      expect(techStackSection!.text()).toContain('Vue')
-      expect(techStackSection!.text()).toContain('Docker')
+      const techSection = findSection(wrapper, 'Tech Stack')
+      expect(techSection).toBeDefined()
+      expect(techSection!.text()).toContain('Python')
+      expect(techSection!.text()).toContain('Redis')
     })
 
-    it('displays engineering culture when available', async () => {
-      const wrapper = await mountWithStream([{ type: 'complete', data: mockCompanySummary }])
+    it('displays starter code when available', async () => {
+      const wrapper = await mountWithStream([{ type: 'complete', data: mockDrill }])
 
-      const cultureSection = findSection(wrapper, 'Engineering Culture')
-      expect(cultureSection).toBeDefined()
-      expect(cultureSection!.text()).toContain('Collaborative and innovative.')
+      const codeSection = findSection(wrapper, 'Starter Code')
+      expect(codeSection).toBeDefined()
+      expect(codeSection!.find('code').text()).toContain('class RateLimiter')
     })
 
-    it('displays interview tips when available', async () => {
-      const wrapper = await mountWithStream([{ type: 'complete', data: mockCompanySummary }])
+    it('displays hints in collapsible section', async () => {
+      const wrapper = await mountWithStream([{ type: 'complete', data: mockDrill }])
 
-      const tipsSection = findSection(wrapper, 'Interview Tips')
-      expect(tipsSection).toBeDefined()
-      expect(tipsSection!.text()).toContain('Focus on system design and algorithms.')
+      const hintsSection = wrapper.find('.hints-section')
+      expect(hintsSection.exists()).toBe(true)
+      expect(hintsSection.find('h3').text()).toContain('Hints (2 available)')
+
+      // Hints should be collapsed by default
+      const hintItems = hintsSection.findAll('.hint-item')
+      expect(hintItems.length).toBe(2)
+
+      // Button should not have 'expanded' class initially
+      expect(hintItems[0].find('.hint-toggle').classes()).not.toContain('expanded')
+
+      // Click to expand first hint
+      await hintItems[0].find('.hint-toggle').trigger('click')
+      await flushPromises()
+
+      // Button should now have 'expanded' class
+      expect(hintItems[0].find('.hint-toggle').classes()).toContain('expanded')
+
+      // Check hint content is present (v-show keeps element in DOM)
+      expect(hintItems[0].find('.hint-content').text()).toContain('Consider using a sliding window')
     })
 
-    it('displays recent news when available', async () => {
-      const wrapper = await mountWithStream([{ type: 'complete', data: mockCompanySummary }])
+    it('displays solution textarea with submit button disabled when empty', async () => {
+      const wrapper = await mountWithStream([{ type: 'complete', data: mockDrill }])
 
-      const newsSection = findSection(wrapper, 'Recent News')
-      expect(newsSection).toBeDefined()
-      expect(newsSection!.text()).toContain('Launched new product')
-      expect(newsSection!.text()).toContain('Raised Series B')
+      const solutionSection = wrapper.find('.solution-section')
+      expect(solutionSection.exists()).toBe(true)
+      expect(solutionSection.find('h3').text()).toBe('Your Solution')
+      expect(solutionSection.find('.solution-input').exists()).toBe(true)
+      expect(solutionSection.find('.submit-solution-btn').attributes('disabled')).toBeDefined()
     })
 
-    it('hides tech stack section when null', async () => {
-      const summaryWithoutTech: CompanySummary = {
-        ...mockCompanySummary,
-        tech_stack: null
+    it('enables submit button when solution text is entered', async () => {
+      const wrapper = await mountWithStream([{ type: 'complete', data: mockDrill }])
+
+      const textarea = wrapper.find('.solution-input')
+      const submitBtn = wrapper.find('.submit-solution-btn')
+
+      // Initially disabled
+      expect(submitBtn.attributes('disabled')).toBeDefined()
+
+      // Enter text
+      await textarea.setValue('function solve() { return 42; }')
+      await flushPromises()
+
+      // Should be enabled now
+      expect(submitBtn.attributes('disabled')).toBeUndefined()
+    })
+
+    it('hides company context section when null', async () => {
+      const drillWithoutContext: Drill = {
+        ...mockDrill,
+        company_context: null
       }
 
-      const wrapper = await mountWithStream([{ type: 'complete', data: summaryWithoutTech }])
+      const wrapper = await mountWithStream([{ type: 'complete', data: drillWithoutContext }])
 
-      const techStackSection = findSection(wrapper, 'Tech Stack')
-      expect(techStackSection).toBeUndefined()
+      const contextSection = findSection(wrapper, 'Company Context')
+      expect(contextSection).toBeUndefined()
+    })
+
+    it('hides tech stack section when empty', async () => {
+      const drillWithoutTech: Drill = {
+        ...mockDrill,
+        tech_stack: []
+      }
+
+      const wrapper = await mountWithStream([{ type: 'complete', data: drillWithoutTech }])
+
+      const techSection = findSection(wrapper, 'Tech Stack')
+      expect(techSection).toBeUndefined()
     })
   })
 
   describe('error state', () => {
     it('shows error message when error event received', async () => {
-      const events: StreamEvent[] = [
-        { type: 'status', message: 'Planning...' },
-        { type: 'error', message: 'Research timed out. Please try again.' }
+      const events: DrillStreamEvent[] = [
+        { type: 'status', message: 'Generating...' },
+        { type: 'error', message: 'Drill generation timed out. Please try again.' }
       ]
 
       const wrapper = await mountWithStream(events)
 
       expect(wrapper.find('.error-state').exists()).toBe(true)
-      expect(wrapper.find('.error-message').text()).toBe('Research timed out. Please try again.')
+      expect(wrapper.find('.error-message').text()).toBe(
+        'Drill generation timed out. Please try again.'
+      )
     })
 
     it('shows retry button on error', async () => {
@@ -231,7 +318,7 @@ describe('PracticeView', () => {
     it('shows error when stream throws', async () => {
       setupStoreWithSession()
 
-      vi.mocked(api.streamCompanyResearch).mockImplementation(async function* () {
+      vi.mocked(api.streamDrillGeneration).mockImplementation(async function* () {
         throw new Error('Network error')
       })
 
@@ -245,7 +332,7 @@ describe('PracticeView', () => {
     it('shows generic error for non-Error throws', async () => {
       setupStoreWithSession()
 
-      vi.mocked(api.streamCompanyResearch).mockImplementation(async function* () {
+      vi.mocked(api.streamDrillGeneration).mockImplementation(async function* () {
         throw 'Unknown error'
       })
 
@@ -257,36 +344,36 @@ describe('PracticeView', () => {
   })
 
   describe('retry functionality', () => {
-    it('calls streamCompanyResearch again when retry clicked', async () => {
+    it('calls streamDrillGeneration again when retry clicked', async () => {
       setupStoreWithSession()
 
       // First call returns error
-      vi.mocked(api.streamCompanyResearch).mockReturnValueOnce(
+      vi.mocked(api.streamDrillGeneration).mockReturnValueOnce(
         createMockStream([{ type: 'error', message: 'Failed' }])
       )
 
       const wrapper = mount(PracticeView)
       await flushPromises()
 
-      expect(api.streamCompanyResearch).toHaveBeenCalledTimes(1)
+      expect(api.streamDrillGeneration).toHaveBeenCalledTimes(1)
 
       // Second call returns success
-      vi.mocked(api.streamCompanyResearch).mockReturnValueOnce(
-        createMockStream([{ type: 'complete', data: mockCompanySummary }])
+      vi.mocked(api.streamDrillGeneration).mockReturnValueOnce(
+        createMockStream([{ type: 'complete', data: mockDrill }])
       )
 
       await wrapper.find('.retry-button').trigger('click')
       await flushPromises()
 
-      expect(api.streamCompanyResearch).toHaveBeenCalledTimes(2)
-      expect(wrapper.find('.summary-state').exists()).toBe(true)
+      expect(api.streamDrillGeneration).toHaveBeenCalledTimes(2)
+      expect(wrapper.find('.drill-card').exists()).toBe(true)
     })
 
     it('clears error state when retrying', async () => {
       setupStoreWithSession()
 
       // First call returns error, second returns success after delay
-      vi.mocked(api.streamCompanyResearch)
+      vi.mocked(api.streamDrillGeneration)
         .mockReturnValueOnce(createMockStream([{ type: 'error', message: 'Failed' }]))
         .mockReturnValueOnce(createMockStream([{ type: 'status', message: 'Retrying...' }]))
 
@@ -301,20 +388,55 @@ describe('PracticeView', () => {
       expect(wrapper.find('.error-state').exists()).toBe(false)
       expect(wrapper.find('.loading-state').exists()).toBe(true)
     })
+
+    it('clears candidates when retrying', async () => {
+      setupStoreWithSession()
+
+      // First call returns candidates then error
+      vi.mocked(api.streamDrillGeneration).mockReturnValueOnce(
+        createMockStream([
+          { type: 'candidate', generator: 'coding', title: 'Old Candidate' },
+          { type: 'error', message: 'Failed' }
+        ])
+      )
+
+      const wrapper = mount(PracticeView)
+      await flushPromises()
+
+      // Error state is shown (candidates are in loading-state which is hidden on error)
+      expect(wrapper.find('.error-state').exists()).toBe(true)
+
+      // Second call returns new candidate - should not show old ones
+      vi.mocked(api.streamDrillGeneration).mockReturnValueOnce(
+        createMockStream([
+          { type: 'status', message: 'Retrying...' },
+          { type: 'candidate', generator: 'debugging', title: 'New Candidate' }
+        ])
+      )
+
+      await wrapper.find('.retry-button').trigger('click')
+      await flushPromises()
+
+      // Should only show the new candidate, not the old one
+      const candidates = wrapper.findAll('.candidate-item')
+      expect(candidates).toHaveLength(1)
+      expect(candidates[0].text()).toContain('New Candidate')
+      expect(candidates[0].text()).not.toContain('Old Candidate')
+    })
   })
 
   describe('API integration', () => {
-    it('calls streamCompanyResearch with sessionId on mount', async () => {
+    it('calls streamDrillGeneration with sessionId on mount', async () => {
       setupStoreWithSession('test-session-456')
 
-      vi.mocked(api.streamCompanyResearch).mockReturnValue(
+      vi.mocked(api.streamDrillGeneration).mockReturnValue(
         createMockStream([{ type: 'status', message: 'Starting...' }])
       )
 
       mount(PracticeView)
       await flushPromises()
 
-      expect(api.streamCompanyResearch).toHaveBeenCalledWith('test-session-456')
+      expect(api.streamDrillGeneration).toHaveBeenCalledWith('test-session-456')
     })
   })
 })
