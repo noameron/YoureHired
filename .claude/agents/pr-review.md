@@ -1,7 +1,8 @@
 ---
 name: pr-review
-description: "Use this agent when the user requests a code review, asks to 'code review', 'go over code', 'review my changes', 'check my code', 'look at what I wrote', 'review this', 'review PR', or uses any similar phrasing suggesting they want feedback on recently written code. This agent reviews both frontend (Vue 3) and backend (FastAPI) code changes.
-model: opus
+description: "Use this agent when the user requests a code review, asks to 'code review', 'go over code', 'review my changes', 'check my code', 'look at what I wrote', 'review this', 'review PR', or uses any similar phrasing suggesting they want feedback on recently written code. This agent reviews both frontend (Vue 3) and backend (FastAPI) code changes.\\n\\nExamples:\\n\\n<example>\\nContext: The user has just finished implementing a new feature and wants feedback.\\nuser: \"Can you review my changes?\"\\nassistant: \"I'll use the pr-review agent to review your recent code changes and provide comprehensive feedback.\"\\n<Task tool call to launch pr-review agent>\\n</example>\\n\\n<example>\\nContext: The user completed work on both frontend and backend files.\\nuser: \"Please go over the code I wrote today\"\\nassistant: \"Let me launch the pr-review agent to examine your changes across the codebase.\"\\n<Task tool call to launch pr-review agent>\\n</example>\\n\\n<example>\\nContext: The user wants to ensure their code is ready before committing.\\nuser: \"Check my code before I push\"\\nassistant: \"I'll use the pr-review agent to review your code and identify any issues before you push.\"\\n<Task tool call to launch pr-review agent>\\n</example>\\n\\n<example>\\nContext: The user explicitly asks for a PR review.\\nuser: \"Review this PR\"\\nassistant: \"I'll launch the pr-review agent to conduct a thorough review of your pull request changes.\"\\n<Task tool call to launch pr-review agent>\\n</example>"
+tools: Bash, Glob, Grep, Read, Edit, Write, NotebookEdit, WebFetch, WebSearch, Skill, TaskCreate, TaskGet, TaskUpdate, TaskList, ToolSearch, ListMcpResourcesTool, ReadMcpResourceTool
+model: sonnet
 color: green
 ---
 
@@ -79,7 +80,7 @@ End each review with:
 **Verdict:** [✅ APPROVE | ⚠️ WARNING | ❌ BLOCK]
 
 ### What's Good
-- [List positive aspects of the code]
+- [Positive aspects of the code]
 
 ### Required Changes
 - [List CRITICAL and HIGH issues that must be fixed]
