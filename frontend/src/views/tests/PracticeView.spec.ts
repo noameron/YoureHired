@@ -221,8 +221,51 @@ describe('PracticeView', () => {
 
       const hintsSection = wrapper.find('.hints-section')
       expect(hintsSection.exists()).toBe(true)
-      expect(hintsSection.find('summary').text()).toContain('Hints (2)')
-      expect(hintsSection.text()).toContain('Consider using a sliding window')
+      expect(hintsSection.find('h3').text()).toContain('Hints (2 available)')
+
+      // Hints should be collapsed by default
+      const hintItems = hintsSection.findAll('.hint-item')
+      expect(hintItems.length).toBe(2)
+
+      // Button should not have 'expanded' class initially
+      expect(hintItems[0].find('.hint-toggle').classes()).not.toContain('expanded')
+
+      // Click to expand first hint
+      await hintItems[0].find('.hint-toggle').trigger('click')
+      await flushPromises()
+
+      // Button should now have 'expanded' class
+      expect(hintItems[0].find('.hint-toggle').classes()).toContain('expanded')
+
+      // Check hint content is present (v-show keeps element in DOM)
+      expect(hintItems[0].find('.hint-content').text()).toContain('Consider using a sliding window')
+    })
+
+    it('displays solution textarea with submit button disabled when empty', async () => {
+      const wrapper = await mountWithStream([{ type: 'complete', data: mockDrill }])
+
+      const solutionSection = wrapper.find('.solution-section')
+      expect(solutionSection.exists()).toBe(true)
+      expect(solutionSection.find('h3').text()).toBe('Your Solution')
+      expect(solutionSection.find('.solution-input').exists()).toBe(true)
+      expect(solutionSection.find('.submit-solution-btn').attributes('disabled')).toBeDefined()
+    })
+
+    it('enables submit button when solution text is entered', async () => {
+      const wrapper = await mountWithStream([{ type: 'complete', data: mockDrill }])
+
+      const textarea = wrapper.find('.solution-input')
+      const submitBtn = wrapper.find('.submit-solution-btn')
+
+      // Initially disabled
+      expect(submitBtn.attributes('disabled')).toBeDefined()
+
+      // Enter text
+      await textarea.setValue('function solve() { return 42; }')
+      await flushPromises()
+
+      // Should be enabled now
+      expect(submitBtn.attributes('disabled')).toBeUndefined()
     })
 
     it('hides company context section when null', async () => {

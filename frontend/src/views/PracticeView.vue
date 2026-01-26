@@ -4,9 +4,13 @@ import { useRouter } from 'vue-router'
 import { useUserSelectionStore } from '@/stores/userSelection'
 import { streamDrillGeneration } from '@/services/api'
 import type { Drill, DrillStreamCandidateEvent } from '@/services/types'
+import { useHints, useSolution } from './practice/usePractice'
 
 const router = useRouter()
 const store = useUserSelectionStore()
+
+const { toggleHint, isHintExpanded } = useHints()
+const { solution, submitSolution } = useSolution()
 
 const currentStatus = ref<string>('Connecting...')
 const drill = ref<Drill | null>(null)
@@ -58,14 +62,28 @@ onMounted(() => {
   <div class="practice-view">
     <div class="content">
       <!-- Loading state -->
-      <div v-if="!drill && !error" class="loading-state">
-        <div class="spinner"></div>
-        <p class="status">{{ currentStatus }}</p>
-        <p class="context">Preparing drill for {{ store.companyName }} {{ store.role }}</p>
+      <div
+        v-if="!drill && !error"
+        class="loading-state"
+      >
+        <div class="spinner" />
+        <p class="status">
+          {{ currentStatus }}
+        </p>
+        <p class="context">
+          Preparing drill for {{ store.companyName }} {{ store.role }}
+        </p>
 
         <!-- Show candidates as they're generated -->
-        <ul v-if="drillCandidates.length" class="candidates-preview">
-          <li v-for="(c, idx) in drillCandidates" :key="idx" class="candidate-item">
+        <ul
+          v-if="drillCandidates.length"
+          class="candidates-preview"
+        >
+          <li
+            v-for="(c, idx) in drillCandidates"
+            :key="idx"
+            class="candidate-item"
+          >
             <span class="candidate-type">{{ formatDrillType(c.generator) }}</span>
             <span class="candidate-title">{{ c.title }}</span>
           </li>
@@ -73,24 +91,45 @@ onMounted(() => {
       </div>
 
       <!-- Error state -->
-      <div v-else-if="error" class="error-state">
-        <p class="error-message">{{ error }}</p>
-        <button @click="retry" class="retry-button">Try Again</button>
+      <div
+        v-else-if="error"
+        class="error-state"
+      >
+        <p class="error-message">
+          {{ error }}
+        </p>
+        <button
+          class="retry-button"
+          @click="retry"
+        >
+          Try Again
+        </button>
       </div>
 
       <!-- Complete state - show drill -->
-      <div v-else-if="drill" class="drill-card">
+      <div
+        v-else-if="drill"
+        class="drill-card"
+      >
         <h1>{{ drill.title }}</h1>
 
         <div class="meta">
           <span class="type">{{ formatDrillType(drill.type) }}</span>
-          <span class="difficulty" :class="drill.difficulty">{{ drill.difficulty }}</span>
+          <span
+            class="difficulty"
+            :class="drill.difficulty"
+          >{{ drill.difficulty }}</span>
           <span class="time">{{ drill.expected_time_minutes }} min</span>
         </div>
 
-        <p class="description">{{ drill.description }}</p>
+        <p class="description">
+          {{ drill.description }}
+        </p>
 
-        <section v-if="drill.company_context" class="section">
+        <section
+          v-if="drill.company_context"
+          class="section"
+        >
           <h3>Company Context</h3>
           <p>{{ drill.company_context }}</p>
         </section>
@@ -98,28 +137,85 @@ onMounted(() => {
         <section class="section">
           <h3>Requirements</h3>
           <ul class="requirements">
-            <li v-for="(r, idx) in drill.requirements" :key="idx">{{ r }}</li>
+            <li
+              v-for="(r, idx) in drill.requirements"
+              :key="idx"
+            >
+              {{ r }}
+            </li>
           </ul>
         </section>
 
-        <section v-if="drill.tech_stack.length" class="section">
+        <section
+          v-if="drill.tech_stack.length"
+          class="section"
+        >
           <h3>Tech Stack</h3>
           <div class="tags">
-            <span v-for="(t, idx) in drill.tech_stack" :key="idx" class="tag">{{ t }}</span>
+            <span
+              v-for="(t, idx) in drill.tech_stack"
+              :key="idx"
+              class="tag"
+            >{{ t }}</span>
           </div>
         </section>
 
-        <section v-if="drill.starter_code" class="section">
+        <section
+          v-if="drill.starter_code"
+          class="section"
+        >
           <h3>Starter Code</h3>
           <pre class="code-block"><code>{{ drill.starter_code }}</code></pre>
         </section>
 
-        <details v-if="drill.hints.length" class="hints-section">
-          <summary>Hints ({{ drill.hints.length }})</summary>
-          <ol class="hints-list">
-            <li v-for="(h, idx) in drill.hints" :key="idx">{{ h }}</li>
-          </ol>
-        </details>
+        <section
+          v-if="drill.hints.length"
+          class="hints-section"
+        >
+          <h3>Hints ({{ drill.hints.length }} available)</h3>
+          <div class="hints-list">
+            <div
+              v-for="(hint, idx) in drill.hints"
+              :key="idx"
+              class="hint-item"
+            >
+              <button
+                type="button"
+                class="hint-toggle"
+                :class="{ expanded: isHintExpanded(idx) }"
+                @click="toggleHint(idx)"
+              >
+                <span class="hint-label">Hint {{ idx + 1 }}</span>
+                <span class="hint-chevron">{{ isHintExpanded(idx) ? '▼' : '▶' }}</span>
+              </button>
+              <div
+                v-show="isHintExpanded(idx)"
+                class="hint-content"
+              >
+                {{ hint }}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section solution-section">
+          <h3>Your Solution</h3>
+          <textarea
+            v-model="solution"
+            class="solution-input"
+            placeholder="Paste or type your solution here..."
+            rows="12"
+            spellcheck="false"
+          />
+          <button
+            type="button"
+            class="submit-solution-btn"
+            :disabled="!solution.trim()"
+            @click="submitSolution"
+          >
+            Submit Solution
+          </button>
+        </section>
       </div>
     </div>
   </div>
@@ -350,19 +446,109 @@ onMounted(() => {
   border-top: 1px solid #e0e0e0;
 }
 
-.hints-section summary {
-  cursor: pointer;
-  color: #0066ff;
-  font-weight: 600;
+.hints-section h3 {
+  color: #1a1a2e;
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
 }
 
 .hints-list {
-  color: #4a5568;
-  margin: 0.75rem 0 0;
-  padding-left: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-.hints-list li {
-  margin: 0.5rem 0;
+.hint-item {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.hint-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: #f8f9fa;
+  border: none;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0066ff;
+  text-align: left;
+}
+
+.hint-toggle:hover {
+  background: #f0f2f5;
+}
+
+.hint-chevron {
+  font-size: 0.75rem;
+  color: #6c757d;
+}
+
+.hint-toggle.expanded .hint-chevron {
+  color: #0066ff;
+}
+
+.hint-content {
+  padding: 0.75rem 1rem;
+  color: #4a5568;
+  line-height: 1.6;
+  background: #ffffff;
+  border-top: 1px solid #e0e0e0;
+}
+
+.solution-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.solution-input {
+  width: 100%;
+  min-height: 200px;
+  padding: 1rem;
+  background: #1a1a2e;
+  color: #f0f0f0;
+  border: 1px solid #2d2d44;
+  border-radius: 8px;
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.solution-input::placeholder {
+  color: #6b7280;
+}
+
+.solution-input:focus {
+  outline: none;
+  border-color: #0066ff;
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.2);
+}
+
+.submit-solution-btn {
+  margin-top: 1rem;
+  background: #0066ff;
+  color: white;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.submit-solution-btn:hover:not(:disabled) {
+  background: #0052cc;
+}
+
+.submit-solution-btn:disabled {
+  background: #a0aec0;
+  cursor: not-allowed;
 }
 </style>
