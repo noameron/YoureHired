@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/scripts/git-identity-guard.sh"
+            "command": ".claude/hooks/git-identity-guard.sh"
           }
         ]
       }
