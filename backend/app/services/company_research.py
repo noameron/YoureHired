@@ -14,9 +14,8 @@ from app.agents.guardrails.exceptions import (
 from app.agents.planner_agent import planner_agent
 from app.agents.search_agent import search_agent
 from app.agents.summarizer_agent import summarizer_agent
+from app.config import settings
 from app.schemas.company_info import CompanySummary, SearchPlan, SearchQuery
-
-AGENT_TIMEOUT = 60  # seconds
 
 
 async def research_company_stream(
@@ -33,7 +32,7 @@ async def research_company_stream(
         plan_input = f"Company: {company_name}\nRole: {role}"
         plan_result = await asyncio.wait_for(
             Runner.run(planner_agent, plan_input),
-            timeout=AGENT_TIMEOUT
+            timeout=settings.company_research_agent_timeout
         )
         search_plan: SearchPlan = plan_result.final_output
         yield {"type": "status", "message": f"Found {len(search_plan.searches)} areas to research"}
@@ -50,7 +49,7 @@ async def research_company_stream(
                 search_input = f"Search term: {item.query}\nReason: {item.reason}"
                 result = await asyncio.wait_for(
                     Runner.run(search_agent, search_input),
-                    timeout=AGENT_TIMEOUT
+                    timeout=settings.company_research_agent_timeout
                 )
                 search_results.append(result.final_output)
             except TimeoutError:
@@ -71,7 +70,7 @@ async def research_company_stream(
         summary_input = f"Company: {company_name}\nRole: {role}\n\nResearch:\n{combined}"
         summary_result = await asyncio.wait_for(
             Runner.run(summarizer_agent, summary_input),
-            timeout=AGENT_TIMEOUT
+            timeout=settings.company_research_agent_timeout
         )
 
         # Final result

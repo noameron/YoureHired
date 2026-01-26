@@ -4,7 +4,6 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from app.config import PREDEFINED_ROLES
-from app.services import session_store
 from app.schemas.user_selection import (
     ErrorDetails,
     UserSelectionData,
@@ -12,6 +11,7 @@ from app.schemas.user_selection import (
     UserSelectionRequest,
     UserSelectionResponse,
 )
+from app.services import session_store
 
 router = APIRouter(tags=["user-selection"])
 
