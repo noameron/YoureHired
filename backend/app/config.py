@@ -29,5 +29,9 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
 
+    # Agent Timeouts (seconds)
+    company_research_agent_timeout: float = 60.0
+    drill_generation_agent_timeout: float = 90.0
+
 
 settings = Settings()

@@ -1,5 +1,9 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.schemas.company_info import CompanySummary
 
 
 @dataclass
@@ -8,6 +12,7 @@ class Session:
     company_name: str
     role: str
     role_description: str | None
+    company_summary: "CompanySummary | None" = None
     created_at: datetime = field(default_factory=datetime.utcnow)
 
 
@@ -37,6 +42,16 @@ class SessionStore:
         if session and datetime.utcnow() - session.created_at < self._ttl:
             return session
         return None
+
+    def update_company_summary(
+        self, session_id: str, company_summary: "CompanySummary"
+    ) -> bool:
+        """Update session with company research summary."""
+        session = self.get(session_id)
+        if session:
+            session.company_summary = company_summary
+            return True
+        return False
 
 
 session_store = SessionStore()

@@ -1,5 +1,4 @@
 import re
-from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -12,7 +11,7 @@ class UserSelectionRequest(BaseModel):
         description="Company name (2-100 characters, no emojis or repeated symbols)",
     )
     role: str = Field(..., description="Role ID from predefined roles")
-    role_description: Optional[str] = Field(
+    role_description: str | None = Field(
         None,
         description="Optional role description (30-8000 characters if provided)",
     )
@@ -52,7 +51,7 @@ class UserSelectionRequest(BaseModel):
 
     @field_validator("role_description")
     @classmethod
-    def validate_role_description(cls, v: Optional[str]) -> Optional[str]:
+    def validate_role_description(cls, v: str | None) -> str | None:
         if v is None:
             return None
         v = v.strip()
@@ -68,7 +67,7 @@ class UserSelectionRequest(BaseModel):
 class UserSelectionData(BaseModel):
     company_name: str
     role: str
-    role_description: Optional[str]
+    role_description: str | None
     session_id: str
 
 
