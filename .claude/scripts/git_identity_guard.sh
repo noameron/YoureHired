@@ -20,17 +20,17 @@ if [[ "$TOOL" == "Bash" && "$CMD" == *"git commit"* ]]; then
 
     # 5. Validation Logic
     if [[ "$CURRENT_NAME" != "$REQUIRED_NAME" || "$CURRENT_EMAIL" != "$REQUIRED_EMAIL" ]]; then
-        # Block and provide the specific fix
+        # Deny and provide the specific fix
         echo "{
           \"hookSpecificOutput\": {
             \"hookEventName\": \"PreToolUse\",
-            \"permissionDecision\": \"block\",
-            \"reason\": \"❌ IDENTITY MISMATCH: Current is '$CURRENT_NAME' <$CURRENT_EMAIL>. Please run:\\n\\ngit config user.name '$REQUIRED_NAME'\\ngit config user.email '$REQUIRED_EMAIL'\"
+            \"permissionDecision\": \"deny\",
+            \"permissionDecisionReason\": \"IDENTITY MISMATCH: Current is '$CURRENT_NAME' <$CURRENT_EMAIL>. Please run:\\n\\ngit config user.name '$REQUIRED_NAME'\\ngit config user.email '$REQUIRED_EMAIL'\"
           }
         }"
         exit 0
     fi
 fi
 
-# 6. Default: Allow (or pass to user prompt)
-echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask"}}'
+# 6. Default: Allow all non-commit commands
+echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}'
