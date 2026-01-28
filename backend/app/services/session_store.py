@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.schemas.company_info import CompanySummary
+    from app.schemas.drill import Drill
 
 
 @dataclass
@@ -13,6 +14,8 @@ class Session:
     role: str
     role_description: str | None
     company_summary: "CompanySummary | None" = None
+    current_drill: "Drill | None" = None
+    last_feedback_summary: str | None = None
     created_at: datetime = field(default_factory=datetime.utcnow)
 
 
@@ -50,6 +53,24 @@ class SessionStore:
         session = self.get(session_id)
         if session:
             session.company_summary = company_summary
+            return True
+        return False
+
+    def update_current_drill(self, session_id: str, drill: "Drill") -> bool:
+        """Update session with current drill."""
+        session = self.get(session_id)
+        if session:
+            session.current_drill = drill
+            return True
+        return False
+
+    def update_last_feedback_summary(
+        self, session_id: str, feedback_summary: str
+    ) -> bool:
+        """Update session with last feedback summary for next drill generation."""
+        session = self.get(session_id)
+        if session:
+            session.last_feedback_summary = feedback_summary
             return True
         return False
 
