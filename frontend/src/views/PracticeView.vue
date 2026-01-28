@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserSelectionStore } from '@/stores/userSelection'
 import { streamDrillGeneration } from '@/services/api'
 import type { Drill, DrillStreamCandidateEvent } from '@/services/types'
 import { useHints, useSolution } from './practice/usePractice'
 import FeedbackCard from '@/components/FeedbackCard.vue'
+import AgentCarousel from '@/components/AgentCarousel.vue'
+import type { AgentData } from '@/components/AgentCarousel.vue'
 
 const router = useRouter()
 const store = useUserSelectionStore()
@@ -25,6 +27,85 @@ const drill = ref<Drill | null>(null)
 const drillCandidates = ref<DrillStreamCandidateEvent[]>([])
 const error = ref<string | null>(null)
 
+// Research agents for carousel
+const researchAgents = ref<AgentData[]>([
+  { id: 1, name: 'Company Research', status: 'pending', output: null },
+  { id: 2, name: 'Role Analysis', status: 'pending', output: null },
+  { id: 3, name: 'Drill Generation', status: 'pending', output: null }
+])
+
+const allResearchComplete = computed(() =>
+  researchAgents.value.every((a) => a.status === 'complete')
+)
+
+function resetAgents() {
+  researchAgents.value = [
+    { id: 1, name: 'Company Research', status: 'pending', output: null },
+    { id: 2, name: 'Role Analysis', status: 'pending', output: null },
+    { id: 3, name: 'Drill Generation', status: 'pending', output: null }
+  ]
+}
+
+function updateAgentFromStatus(message: string) {
+  const lowerMsg = message.toLowerCase()
+
+  // Company research agent
+  if (lowerMsg.includes('company') || lowerMsg.includes('research')) {
+    const agent = researchAgents.value[0]
+    if (agent) {
+      if (agent.status === 'pending') {
+        agent.status = 'running'
+      }
+      agent.output = message
+    }
+  }
+
+  // Role analysis agent
+  if (lowerMsg.includes('role') || lowerMsg.includes('context') || lowerMsg.includes('position')) {
+    const agent = researchAgents.value[1]
+    if (agent) {
+      if (agent.status === 'pending') {
+        agent.status = 'running'
+      }
+      agent.output = message
+    }
+  }
+
+  // Drill generation agent - triggered by generation messages
+  if (lowerMsg.includes('generat') || lowerMsg.includes('drill') || lowerMsg.includes('candidate')) {
+    const agent = researchAgents.value[2]
+    if (agent) {
+      if (agent.status === 'pending') {
+        agent.status = 'running'
+      }
+      agent.output = message
+    }
+  }
+}
+
+function updateAgentFromCandidate(candidate: DrillStreamCandidateEvent) {
+  const agent = researchAgents.value[2]
+  if (agent) {
+    agent.status = 'running'
+    agent.output = `Generated: ${candidate.title}`
+  }
+}
+
+function markAllAgentsComplete() {
+  researchAgents.value.forEach((agent) => {
+    if (agent.status !== 'error') {
+      agent.status = 'complete'
+    }
+  })
+}
+
+function scrollToDrill() {
+  const drillCard = document.querySelector('.drill-card')
+  if (drillCard) {
+    drillCard.scrollIntoView({ behavior: 'smooth' })
+  }
+}
+
 async function startDrillGeneration() {
   if (!store.sessionId) {
     router.push('/')
@@ -35,6 +116,7 @@ async function startDrillGeneration() {
   drill.value = null
   drillCandidates.value = []
   currentStatus.value = 'Starting...'
+  resetAgents()
   // Clear previous feedback when generating new drill
   clearFeedback()
   solution.value = ''
@@ -43,9 +125,12 @@ async function startDrillGeneration() {
     for await (const event of streamDrillGeneration(store.sessionId)) {
       if (event.type === 'status') {
         currentStatus.value = event.message
+        updateAgentFromStatus(event.message)
       } else if (event.type === 'candidate') {
         drillCandidates.value.push(event)
+        updateAgentFromCandidate(event)
       } else if (event.type === 'complete') {
+        markAllAgentsComplete()
         drill.value = event.data
       } else if (event.type === 'error') {
         error.value = event.message
@@ -77,33 +162,50 @@ onMounted(() => {
 <template>
   <div class="practice-view">
     <div class="content">
-      <!-- Loading state -->
+      <!-- Loading state with agent carousel -->
       <div
         v-if="!drill && !error"
         class="loading-state"
       >
-        <div class="spinner" />
-        <p class="status">
-          {{ currentStatus }}
-        </p>
+        <h2 class="loading-title">
+          Preparing Your Drill
+        </h2>
         <p class="context">
-          Preparing drill for {{ store.companyName }} {{ store.role }}
+          {{ store.companyName }} - {{ store.role }}
         </p>
 
-        <!-- Show candidates as they're generated -->
-        <ul
-          v-if="drillCandidates.length"
-          class="candidates-preview"
+        <!-- Agent Carousel -->
+        <AgentCarousel :agents="researchAgents" />
+
+        <!-- Current status -->
+        <p class="status-message">
+          {{ currentStatus }}
+        </p>
+
+        <!-- Transition arrow (appears when all research complete) -->
+        <div
+          v-if="allResearchComplete"
+          class="transition-arrow"
         >
-          <li
-            v-for="(c, idx) in drillCandidates"
-            :key="idx"
-            class="candidate-item"
+          <button
+            class="arrow-button"
+            aria-label="Scroll to drill"
+            @click="scrollToDrill"
           >
-            <span class="candidate-type">{{ formatDrillType(c.generator) }}</span>
-            <span class="candidate-title">{{ c.title }}</span>
-          </li>
-        </ul>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <!-- Error state -->
@@ -247,7 +349,7 @@ onMounted(() => {
       <!-- Feedback Card -->
       <FeedbackCard
         v-if="feedback || isEvaluating"
-        :feedback="feedback!"
+        :feedback="feedback"
         :is-loading="isEvaluating"
         @practice-weak-areas="practiceWeakAreas"
       />
@@ -258,10 +360,10 @@ onMounted(() => {
 <style scoped>
 .practice-view {
   min-height: 100vh;
-  background: #f0f2f5;
+  background: var(--bg-primary);
   display: flex;
   justify-content: center;
-  padding: 2rem;
+  padding: var(--space-8);
 }
 
 .content {
@@ -271,125 +373,141 @@ onMounted(() => {
 
 .loading-state {
   text-align: center;
-  padding: 4rem 2rem;
+  padding: var(--space-8) var(--space-4);
 }
 
-.spinner {
-  width: 48px;
-  height: 48px;
-  border: 4px solid #e0e0e0;
-  border-top-color: #0066ff;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin: 0 auto 1.5rem;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.status {
-  font-size: 1.25rem;
-  color: #1a1a2e;
-  margin-bottom: 0.5rem;
+.loading-title {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-2);
 }
 
 .context {
-  color: #6c757d;
-  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-6);
 }
 
-.candidates-preview {
-  list-style: none;
-  padding: 0;
-  margin-top: 2rem;
-  text-align: left;
-  background: white;
-  border-radius: 8px;
-  padding: 1rem;
+.status-message {
+  margin-top: var(--space-6);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
 }
 
-.candidate-item {
-  padding: 0.5rem 0;
-  border-bottom: 1px solid #e0e0e0;
+/* Transition Arrow */
+.transition-arrow {
   display: flex;
-  gap: 0.75rem;
+  justify-content: center;
+  padding: var(--space-8) 0;
+  animation: fadeIn 0.5s ease;
+}
+
+.arrow-button {
+  background: transparent;
+  border: 2px solid var(--accent-primary);
+  border-radius: var(--radius-full);
+  width: 48px;
+  height: 48px;
+  color: var(--accent-primary);
+  cursor: pointer;
+  animation: bounce 2s infinite;
+  transition: all var(--transition-fast);
+  display: flex;
   align-items: center;
+  justify-content: center;
 }
 
-.candidate-item:last-child {
-  border-bottom: none;
+.arrow-button:hover {
+  background: var(--accent-primary);
+  color: white;
+  animation: none;
 }
 
-.candidate-type {
-  background: #e0e0e0;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  font-weight: 600;
-  color: #4a5568;
+.arrow-button svg {
+  width: 24px;
+  height: 24px;
 }
 
-.candidate-title {
-  color: #1a1a2e;
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(8px);
+  }
 }
 
 .error-state {
   text-align: center;
-  padding: 4rem 2rem;
+  padding: var(--space-16) var(--space-8);
 }
 
 .error-message {
-  color: #dc3545;
-  margin-bottom: 1.5rem;
+  color: var(--color-error-text);
+  margin-bottom: var(--space-6);
 }
 
 .retry-button {
-  background: #0066ff;
+  background: var(--accent-primary);
   color: white;
   border: none;
-  padding: 0.75rem 2rem;
-  border-radius: 8px;
+  padding: var(--space-3) var(--space-8);
+  border-radius: var(--radius-lg);
   cursor: pointer;
-  font-size: 1rem;
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  transition:
+    background var(--transition-fast),
+    box-shadow var(--transition-fast);
+  box-shadow: 0 2px 8px var(--accent-glow);
 }
 
 .retry-button:hover {
-  background: #0052cc;
+  background: var(--accent-hover);
+  box-shadow: var(--shadow-glow);
 }
 
 .drill-card {
-  background: white;
-  border-radius: 16px;
-  padding: 2rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-2xl);
+  padding: var(--space-8);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-subtle);
 }
 
 .drill-card h1 {
-  margin: 0 0 1rem;
-  color: #1a1a2e;
+  margin: 0 0 var(--space-4);
+  color: var(--text-primary);
 }
 
 .meta {
   display: flex;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
   flex-wrap: wrap;
 }
 
 .meta span {
-  padding: 0.375rem 0.75rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
 }
 
 .type {
-  background: #e8f4ff;
-  color: #0066ff;
+  background: var(--accent-light);
+  color: var(--accent-primary);
 }
 
 .difficulty {
@@ -397,104 +515,106 @@ onMounted(() => {
 }
 
 .difficulty.easy {
-  background: #d4edda;
-  color: #155724;
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
 }
 
 .difficulty.medium {
-  background: #fff3cd;
-  color: #856404;
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
 }
 
 .difficulty.hard {
-  background: #f8d7da;
-  color: #721c24;
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
 }
 
 .time {
-  background: #f0f0f0;
-  color: #4a5568;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
 }
 
 .description {
-  color: #4a5568;
-  line-height: 1.6;
-  margin-bottom: 1.5rem;
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+  margin-bottom: var(--space-6);
 }
 
 .section {
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid #e0e0e0;
+  margin-top: var(--space-6);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--border-primary);
 }
 
 .drill-card h3 {
-  color: #1a1a2e;
-  margin: 0 0 0.75rem;
-  font-size: 1.1rem;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-lg);
 }
 
 .drill-card p {
-  color: #4a5568;
-  margin: 0.5rem 0;
+  color: var(--text-secondary);
+  margin: var(--space-2) 0;
 }
 
 .requirements {
-  color: #4a5568;
-  margin: 0.5rem 0;
-  padding-left: 1.5rem;
+  color: var(--text-secondary);
+  margin: var(--space-2) 0;
+  padding-left: var(--space-6);
 }
 
 .requirements li {
-  margin: 0.5rem 0;
+  margin: var(--space-2) 0;
 }
 
 .tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .tag {
-  background: #f0f0f0;
-  color: #4a5568;
-  padding: 0.375rem 0.75rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
 }
 
 .code-block {
-  background: #1a1a2e;
-  color: #f0f0f0;
-  padding: 1rem;
-  border-radius: 8px;
+  background: var(--code-bg);
+  color: var(--code-text);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--code-border);
   overflow-x: auto;
-  font-family: 'Monaco', 'Menlo', monospace;
-  font-size: 0.875rem;
-  line-height: 1.5;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
 }
 
 .hints-section {
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid #e0e0e0;
+  margin-top: var(--space-6);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--border-primary);
 }
 
 .hints-section h3 {
-  color: #1a1a2e;
-  margin: 0 0 0.75rem;
-  font-size: 1.1rem;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-lg);
 }
 
 .hints-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .hint-item {
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
@@ -503,66 +623,71 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 1rem;
-  background: #f8f9fa;
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-tertiary);
   border: none;
   cursor: pointer;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #0066ff;
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--accent-primary);
   text-align: left;
+  transition: background var(--transition-fast);
 }
 
 .hint-toggle:hover {
-  background: #f0f2f5;
+  background: var(--bg-hover);
 }
 
 .hint-chevron {
-  font-size: 0.75rem;
-  color: #6c757d;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  transition: color var(--transition-fast);
 }
 
 .hint-toggle.expanded .hint-chevron {
-  color: #0066ff;
+  color: var(--accent-primary);
 }
 
 .hint-content {
-  padding: 0.75rem 1rem;
-  color: #4a5568;
-  line-height: 1.6;
-  background: #ffffff;
-  border-top: 1px solid #e0e0e0;
+  padding: var(--space-3) var(--space-4);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-primary);
 }
 
 .solution-section {
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid #e0e0e0;
+  margin-top: var(--space-6);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--border-primary);
 }
 
 .solution-input {
   width: 100%;
   min-height: 200px;
-  padding: 1rem;
-  background: #1a1a2e;
-  color: #f0f0f0;
-  border: 1px solid #2d2d44;
-  border-radius: 8px;
-  font-family: 'Monaco', 'Menlo', monospace;
-  font-size: 0.875rem;
-  line-height: 1.5;
+  padding: var(--space-4);
+  background: var(--code-bg);
+  color: var(--code-text);
+  border: 1px solid var(--code-border);
+  border-radius: var(--radius-lg);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
   resize: vertical;
   box-sizing: border-box;
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .solution-input::placeholder {
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .solution-input:focus {
   outline: none;
-  border-color: #0066ff;
-  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.2);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-light);
 }
 
 .solution-input:disabled {
@@ -571,29 +696,46 @@ onMounted(() => {
 }
 
 .evaluation-error {
-  color: #dc3545;
-  margin: 0.75rem 0;
-  font-size: 0.9rem;
+  color: var(--color-error-text);
+  margin: var(--space-3) 0;
+  font-size: var(--text-sm);
 }
 
 .submit-solution-btn {
-  margin-top: 1rem;
-  background: #0066ff;
+  margin-top: var(--space-4);
+  background: var(--accent-primary);
   color: white;
   border: none;
-  padding: 0.75rem 2rem;
-  border-radius: 8px;
+  padding: var(--space-3) var(--space-8);
+  border-radius: var(--radius-lg);
   cursor: pointer;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  transition:
+    background var(--transition-fast),
+    box-shadow var(--transition-fast);
+  box-shadow: 0 2px 8px var(--accent-glow);
 }
 
 .submit-solution-btn:hover:not(:disabled) {
-  background: #0052cc;
+  background: var(--accent-hover);
+  box-shadow: var(--shadow-glow);
 }
 
 .submit-solution-btn:disabled {
-  background: #a0aec0;
+  background: var(--text-muted);
   cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .practice-view {
+    padding: var(--space-4);
+  }
+
+  .drill-card {
+    padding: var(--space-5);
+  }
 }
 </style>
