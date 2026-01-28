@@ -108,7 +108,8 @@ describe('PracticeView', () => {
       const wrapper = mount(PracticeView)
 
       expect(wrapper.find('.loading-state').exists()).toBe(true)
-      expect(wrapper.find('.spinner').exists()).toBe(true)
+      // AgentCarousel is now used instead of spinner
+      expect(wrapper.findComponent({ name: 'AgentCarousel' }).exists()).toBe(true)
     })
 
     it('shows company and role context while loading', async () => {
@@ -127,8 +128,8 @@ describe('PracticeView', () => {
 
       const wrapper = await mountWithStream(events)
 
-      // After all events, should show the last status
-      expect(wrapper.find('.status').text()).toBe('Evaluating candidates...')
+      // After all events, should show the last status (class changed to status-message)
+      expect(wrapper.find('.status-message').text()).toBe('Evaluating candidates...')
     })
 
     it('shows candidates as they are generated', async () => {
@@ -140,12 +141,18 @@ describe('PracticeView', () => {
 
       const wrapper = await mountWithStream(events)
 
-      const candidates = wrapper.findAll('.candidate-item')
-      expect(candidates).toHaveLength(2)
-      expect(candidates[0].text()).toContain('Coding')
-      expect(candidates[0].text()).toContain('Build a Rate Limiter')
-      expect(candidates[1].text()).toContain('Debugging')
-      expect(candidates[1].text()).toContain('Fix Memory Leak')
+      // Candidates are now tracked via AgentCarousel which shows agent status
+      // The carousel displays AgentOutputCard components for each agent
+      const carousel = wrapper.findComponent({ name: 'AgentCarousel' })
+      expect(carousel.exists()).toBe(true)
+
+      // Verify the drill generation agent shows the last candidate
+      const cards = wrapper.findAllComponents({ name: 'AgentOutputCard' })
+      expect(cards.length).toBe(3) // 3 research agents
+
+      // The Drill Generation agent (index 2) should show the last candidate
+      const drillGenAgent = cards[2]
+      expect(drillGenAgent.props('output')).toContain('Fix Memory Leak')
     })
   })
 
@@ -417,11 +424,14 @@ describe('PracticeView', () => {
       await wrapper.find('.retry-button').trigger('click')
       await flushPromises()
 
-      // Should only show the new candidate, not the old one
-      const candidates = wrapper.findAll('.candidate-item')
-      expect(candidates).toHaveLength(1)
-      expect(candidates[0].text()).toContain('New Candidate')
-      expect(candidates[0].text()).not.toContain('Old Candidate')
+      // Verify agents are reset and show the new candidate via AgentCarousel
+      const cards = wrapper.findAllComponents({ name: 'AgentOutputCard' })
+      expect(cards.length).toBe(3) // 3 research agents
+
+      // The Drill Generation agent (index 2) should show the new candidate
+      const drillGenAgent = cards[2]
+      expect(drillGenAgent.props('output')).toContain('New Candidate')
+      expect(drillGenAgent.props('output')).not.toContain('Old Candidate')
     })
   })
 
