@@ -46,6 +46,7 @@ def _build_generator_input(
     role: str,
     role_description: str | None,
     company_summary: CompanySummary | None = None,
+    previous_feedback_summary: str | None = None,
 ) -> str:
     """Build the input prompt for generator agents."""
     parts = [
@@ -72,6 +73,11 @@ def _build_generator_input(
             parts.append(f"Engineering Culture: {company_summary.engineering_culture}")
         if company_summary.interview_tips:
             parts.append(f"Interview Tips: {company_summary.interview_tips}")
+
+    # Include feedback from previous drill to target weak areas
+    if previous_feedback_summary:
+        parts.append("\nPrevious Drill Feedback (target these weak areas):")
+        parts.append(previous_feedback_summary)
 
     return "\n".join(parts)
 
@@ -116,6 +122,7 @@ async def generate_drill(
     role: str,
     role_description: str | None = None,
     company_summary: CompanySummary | None = None,
+    previous_feedback_summary: str | None = None,
 ) -> Drill:
     """
     Generate a drill using parallel generators and evaluation.
@@ -125,6 +132,7 @@ async def generate_drill(
         role: Job role
         role_description: Optional detailed role description
         company_summary: Optional company research summary for context
+        previous_feedback_summary: Optional feedback from previous drill to target weak areas
 
     Returns:
         The best drill selected by the evaluator
@@ -136,7 +144,7 @@ async def generate_drill(
         ValueError: If no valid candidates are generated
     """
     generator_input = _build_generator_input(
-        company_name, role, role_description, company_summary
+        company_name, role, role_description, company_summary, previous_feedback_summary
     )
 
     # Select generators based on configuration
@@ -195,6 +203,7 @@ async def generate_drill_stream(
     role: str,
     role_description: str | None = None,
     company_summary: CompanySummary | None = None,
+    previous_feedback_summary: str | None = None,
 ) -> AsyncGenerator[dict[str, object], None]:
     """
     Stream drill generation progress and final result.
@@ -205,7 +214,7 @@ async def generate_drill_stream(
         yield {"type": "status", "message": "Starting drill generation..."}
 
         generator_input = _build_generator_input(
-            company_name, role, role_description, company_summary
+            company_name, role, role_description, company_summary, previous_feedback_summary
         )
 
         # Select generators based on configuration

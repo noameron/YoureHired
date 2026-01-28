@@ -54,7 +54,11 @@ async def generate_drill_endpoint(session_id: str) -> DrillGenerationResponse:
         role=session.role,
         role_description=session.role_description,
         company_summary=company_summary,
+        previous_feedback_summary=session.last_feedback_summary,
     )
+
+    # Save drill to session for later evaluation
+    session_store.update_current_drill(session_id, drill)
 
     # Determine which generators were used
     from app.agents.drill import HOW_MANY_GENERATORS
@@ -125,12 +129,19 @@ async def stream_drill_generation(session_id: str) -> StreamingResponse:
                     yield f"data: {json.dumps({'type': 'status', 'message': 'Research unavailable, continuing without company context...'})}\n\n"
 
         # Now generate the drill
+        generated_drill = None
         async for event in generate_drill_stream(
             company_name=session.company_name,
             role=session.role,
             role_description=session.role_description,
             company_summary=company_summary,
+            previous_feedback_summary=session.last_feedback_summary,
         ):
+            # Capture the drill when complete
+            if event["type"] == "complete" and "data" in event:
+                from app.schemas.drill import Drill
+                generated_drill = Drill.model_validate(event["data"])
+                session_store.update_current_drill(session_id, generated_drill)
             yield f"data: {json.dumps(event)}\n\n"
 
     return StreamingResponse(
