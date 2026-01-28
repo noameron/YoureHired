@@ -40,3 +40,45 @@ export type DrillStreamEvent =
   | DrillStreamCandidateEvent
   | DrillStreamCompleteEvent
   | DrillStreamErrorEvent
+
+// Solution Evaluation Types
+export type StrengthItem = {
+  title: string
+  description: string
+}
+
+export type ImprovementItem = {
+  title: string
+  description: string
+  suggestion: string
+}
+
+export type SolutionFeedback = {
+  score: number
+  strengths: StrengthItem[]
+  improvements: ImprovementItem[]
+  summary_for_next_drill: string
+}
+
+export type EvaluationData = {
+  session_id: string
+  feedback: SolutionFeedback
+  feedback_file_path: string
+}
+
+export type EvaluationResponse = {
+  success: true
+  data: EvaluationData
+}
+
+export type EvaluationErrorDetail = {
+  code: string
+  message: string
+}
+
+export type EvaluationErrorResponse = {
+  success: false
+  error: EvaluationErrorDetail
+}
+
+export type EvaluationResult = EvaluationResponse | EvaluationErrorResponse

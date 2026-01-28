@@ -3,7 +3,7 @@ import type {
   UserSelectionRequest,
   UserSelectionResult
 } from '@/types/api'
-import type { DrillStreamEvent } from './types'
+import type { DrillStreamEvent, EvaluationResult } from './types'
 
 const API_BASE = '/api'
 
@@ -78,4 +78,50 @@ export async function* streamDrillGeneration(
       }
     }
   }
+}
+
+/**
+ * Submit a solution for evaluation.
+ * @param sessionId - The session ID
+ * @param solution - The user's solution code
+ * @returns Promise resolving to evaluation result
+ */
+export async function submitSolution(
+  sessionId: string,
+  solution: string
+): Promise<EvaluationResult> {
+  // Validate solution is not empty
+  if (!solution || !solution.trim()) {
+    return {
+      success: false,
+      error: {
+        code: 'empty_solution',
+        message: 'Please enter a solution before submitting.'
+      }
+    }
+  }
+
+  const response = await fetch(`${API_BASE}/evaluate-solution/${sessionId}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ solution })
+  })
+
+  // Success response
+  if (response.ok) {
+    return response.json()
+  }
+
+  // Error responses (400, 404, 500) - FastAPI returns {"detail": {...}}
+  const errorData = await response.json()
+  if (errorData.detail) {
+    return {
+      success: false,
+      error: errorData.detail
+    }
+  }
+
+  throw new Error(`Failed to submit solution: ${response.status} ${response.statusText}`)
 }
