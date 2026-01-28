@@ -29,5 +29,5 @@
 
 ## 5. Integration & Verification
 - [x] 5.1 Run test suite (77 core tests pass)
-- [ ] 5.2 Manual end-to-end test with real LLM
-- [ ] 5.3 Verify streaming works in browser/curl
+- [x] 5.2 Manual end-to-end test with real LLM
+- [x] 5.3 Verify streaming works in browser/curl

@@ -68,6 +68,12 @@ Each agent receives full context including:
 - `company_name` and `role` from session
 - `role_description` from session (if provided, up to 8000 chars)
 - `CompanySummary` from company research (if completed)
+- `previous_feedback_summary` from last evaluation (if available, max 500 chars)
+
+When `previous_feedback_summary` is provided, generators SHALL:
+- Prioritize creating drills that address the identified weak areas
+- Adjust difficulty based on previous performance
+- Focus on skill gaps mentioned in the summary
 
 #### Scenario: All configured generators succeed
 - **WHEN** all configured generator agents complete successfully
@@ -82,7 +88,10 @@ Each agent receives full context including:
 - **WHEN** all configured generator agents fail
 - **THEN** the system returns an error indicating generation failed
 
----
+#### Scenario: Generate drill with feedback context
+- **WHEN** drill generation is triggered with `previous_feedback_summary`
+- **THEN** all generator agents receive the summary as additional context
+- **AND** prioritize drills targeting the identified weak areas
 
 ### Requirement: Drill Evaluation and Selection
 

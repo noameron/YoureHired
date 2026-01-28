@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch, toRef } from 'vue'
 import type { SolutionFeedback } from '@/services/types'
 
-defineProps<{
-  feedback: SolutionFeedback
+const props = defineProps<{
+  feedback?: SolutionFeedback | null
   isLoading?: boolean
 }>()
 
@@ -13,6 +13,12 @@ const emit = defineEmits<{
 
 const expandedStrengths = ref<number[]>([])
 const expandedImprovements = ref<number[]>([])
+
+// Reset expanded state when feedback changes to prevent stale indices
+watch(toRef(props, 'feedback'), () => {
+  expandedStrengths.value = []
+  expandedImprovements.value = []
+})
 
 function toggleStrength(index: number) {
   const idx = expandedStrengths.value.indexOf(index)
@@ -67,7 +73,7 @@ function getScoreLabel(score: number): string {
     </div>
 
     <!-- Feedback content -->
-    <template v-else>
+    <template v-else-if="feedback">
       <!-- Score header -->
       <div class="score-header">
         <h2>Feedback</h2>
@@ -176,26 +182,27 @@ function getScoreLabel(score: number): string {
 
 <style scoped>
 .feedback-card {
-  background: white;
-  border-radius: 16px;
-  padding: 2rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  margin-top: 2rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-2xl);
+  padding: var(--space-8);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-subtle);
+  margin-top: var(--space-8);
 }
 
 .loading-state {
   text-align: center;
-  padding: 3rem 2rem;
+  padding: var(--space-12) var(--space-8);
 }
 
 .spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid #e0e0e0;
-  border-top-color: #0066ff;
+  border: 4px solid var(--border-primary);
+  border-top-color: var(--accent-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
-  margin: 0 auto 1rem;
+  margin: 0 auto var(--space-4);
 }
 
 @keyframes spin {
@@ -205,99 +212,99 @@ function getScoreLabel(score: number): string {
 }
 
 .loading-state p {
-  color: #6c757d;
-  font-size: 1rem;
+  color: var(--text-secondary);
+  font-size: var(--text-base);
 }
 
 .score-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-6);
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .score-header h2 {
   margin: 0;
-  color: #1a1a2e;
-  font-size: 1.5rem;
+  color: var(--text-primary);
+  font-size: var(--text-2xl);
 }
 
 .score-badge {
   display: flex;
   align-items: baseline;
-  gap: 0.25rem;
-  padding: 0.75rem 1.25rem;
-  border-radius: 12px;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-xl);
   flex-wrap: wrap;
   justify-content: center;
 }
 
 .score-badge.good {
-  background: #d4edda;
-  color: #155724;
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
 }
 
 .score-badge.adequate {
-  background: #fff3cd;
-  color: #856404;
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
 }
 
 .score-badge.needs-work {
-  background: #f8d7da;
-  color: #721c24;
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
 }
 
 .score-value {
-  font-size: 2rem;
-  font-weight: 700;
+  font-size: var(--text-3xl);
+  font-weight: var(--font-bold);
   line-height: 1;
 }
 
 .score-max {
-  font-size: 1rem;
+  font-size: var(--text-base);
   opacity: 0.7;
 }
 
 .score-label {
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
   text-transform: uppercase;
   width: 100%;
   text-align: center;
-  margin-top: 0.25rem;
+  margin-top: var(--space-1);
 }
 
 .feedback-section {
-  margin-top: 1.5rem;
+  margin-top: var(--space-6);
 }
 
 .section-title {
-  font-size: 1.1rem;
-  margin: 0 0 0.75rem;
+  font-size: var(--text-lg);
+  margin: 0 0 var(--space-3);
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .strengths-title {
-  color: #155724;
+  color: var(--color-success-text);
 }
 
 .improvements-title {
-  color: #856404;
+  color: var(--color-warning-text);
 }
 
 .items-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .feedback-item {
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
@@ -305,17 +312,18 @@ function getScoreLabel(score: number): string {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  background: #f8f9fa;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-tertiary);
   border: none;
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: var(--text-sm);
   text-align: left;
+  transition: background var(--transition-fast);
 }
 
 .item-toggle:hover {
-  background: #f0f2f5;
+  background: var(--bg-hover);
 }
 
 .item-icon {
@@ -325,79 +333,84 @@ function getScoreLabel(score: number): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
-  font-size: 1rem;
+  font-weight: var(--font-bold);
+  font-size: var(--text-base);
   flex-shrink: 0;
 }
 
 .strengths-icon {
-  background: #d4edda;
-  color: #155724;
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
 }
 
 .improvements-icon {
-  background: #fff3cd;
-  color: #856404;
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
 }
 
 .item-title {
   flex: 1;
-  font-weight: 600;
-  color: #1a1a2e;
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
 }
 
 .item-chevron {
-  font-size: 0.75rem;
-  color: #6c757d;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  transition: color var(--transition-fast);
 }
 
 .item-toggle.expanded .item-chevron {
-  color: #0066ff;
+  color: var(--accent-primary);
 }
 
 .item-content {
-  padding: 1rem;
-  color: #4a5568;
-  line-height: 1.6;
-  background: #ffffff;
-  border-top: 1px solid #e0e0e0;
+  padding: var(--space-4);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-primary);
 }
 
 .item-description {
-  margin: 0 0 0.75rem;
+  margin: 0 0 var(--space-3);
 }
 
 .suggestion-box {
-  background: #f0f7ff;
-  border-left: 3px solid #0066ff;
-  padding: 0.75rem 1rem;
-  border-radius: 0 8px 8px 0;
-  color: #1a1a2e;
+  background: var(--accent-light);
+  border-left: 3px solid var(--accent-primary);
+  padding: var(--space-3) var(--space-4);
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  color: var(--text-primary);
 }
 
 .practice-button-container {
-  margin-top: 2rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid #e0e0e0;
+  margin-top: var(--space-8);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--border-primary);
   text-align: center;
 }
 
 .practice-weak-areas-btn {
-  background: linear-gradient(135deg, #0066ff 0%, #0052cc 100%);
+  background: var(--accent-primary);
   color: white;
   border: none;
-  padding: 1rem 2.5rem;
-  border-radius: 12px;
+  padding: var(--space-4) var(--space-10);
+  border-radius: var(--radius-xl);
   cursor: pointer;
-  font-size: 1.1rem;
-  font-weight: 600;
-  box-shadow: 0 4px 12px rgba(0, 102, 255, 0.3);
-  transition: transform 0.2s, box-shadow 0.2s;
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  box-shadow: var(--shadow-glow);
+  transition:
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast),
+    background var(--transition-fast);
 }
 
 .practice-weak-areas-btn:hover {
+  background: var(--accent-hover);
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 102, 255, 0.4);
+  box-shadow: var(--shadow-glow-lg);
 }
 
 .practice-weak-areas-btn:active {
@@ -405,8 +418,21 @@ function getScoreLabel(score: number): string {
 }
 
 .practice-hint {
-  color: #6c757d;
-  font-size: 0.875rem;
-  margin: 0.75rem 0 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  margin: var(--space-3) 0 0;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .feedback-card {
+    padding: var(--space-5);
+  }
+
+  .score-header {
+    flex-direction: column;
+    gap: var(--space-4);
+    text-align: center;
+  }
 }
 </style>
