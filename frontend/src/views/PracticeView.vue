@@ -5,12 +5,20 @@ import { useUserSelectionStore } from '@/stores/userSelection'
 import { streamDrillGeneration } from '@/services/api'
 import type { Drill, DrillStreamCandidateEvent } from '@/services/types'
 import { useHints, useSolution } from './practice/usePractice'
+import FeedbackCard from '@/components/FeedbackCard.vue'
 
 const router = useRouter()
 const store = useUserSelectionStore()
 
 const { toggleHint, isHintExpanded } = useHints()
-const { solution, submitSolution } = useSolution()
+const {
+  solution,
+  feedback,
+  isEvaluating,
+  evaluationError,
+  submitSolution,
+  clearFeedback
+} = useSolution(() => store.sessionId)
 
 const currentStatus = ref<string>('Connecting...')
 const drill = ref<Drill | null>(null)
@@ -27,6 +35,9 @@ async function startDrillGeneration() {
   drill.value = null
   drillCandidates.value = []
   currentStatus.value = 'Starting...'
+  // Clear previous feedback when generating new drill
+  clearFeedback()
+  solution.value = ''
 
   try {
     for await (const event of streamDrillGeneration(store.sessionId)) {
@@ -46,6 +57,11 @@ async function startDrillGeneration() {
 }
 
 function retry() {
+  startDrillGeneration()
+}
+
+function practiceWeakAreas() {
+  // Trigger new drill generation (feedback summary is already stored in session)
   startDrillGeneration()
 }
 
@@ -186,7 +202,7 @@ onMounted(() => {
                 @click="toggleHint(idx)"
               >
                 <span class="hint-label">Hint {{ idx + 1 }}</span>
-                <span class="hint-chevron">{{ isHintExpanded(idx) ? '▼' : '▶' }}</span>
+                <span class="hint-chevron">{{ isHintExpanded(idx) ? '\u25BC' : '\u25B6' }}</span>
               </button>
               <div
                 v-show="isHintExpanded(idx)"
@@ -206,17 +222,35 @@ onMounted(() => {
             placeholder="Paste or type your solution here..."
             rows="12"
             spellcheck="false"
+            :disabled="isEvaluating"
           />
+
+          <!-- Evaluation error -->
+          <p
+            v-if="evaluationError"
+            class="evaluation-error"
+          >
+            {{ evaluationError }}
+          </p>
+
           <button
             type="button"
             class="submit-solution-btn"
-            :disabled="!solution.trim()"
+            :disabled="!solution.trim() || isEvaluating"
             @click="submitSolution"
           >
-            Submit Solution
+            {{ isEvaluating ? 'Evaluating...' : 'Submit Solution' }}
           </button>
         </section>
       </div>
+
+      <!-- Feedback Card -->
+      <FeedbackCard
+        v-if="feedback || isEvaluating"
+        :feedback="feedback!"
+        :is-loading="isEvaluating"
+        @practice-weak-areas="practiceWeakAreas"
+      />
     </div>
   </div>
 </template>
@@ -529,6 +563,17 @@ onMounted(() => {
   outline: none;
   border-color: #0066ff;
   box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.2);
+}
+
+.solution-input:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.evaluation-error {
+  color: #dc3545;
+  margin: 0.75rem 0;
+  font-size: 0.9rem;
 }
 
 .submit-solution-btn {
