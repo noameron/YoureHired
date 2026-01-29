@@ -8,11 +8,6 @@
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/scripts/git_identity_guard.sh",
             "description": "Git identity guard"
-          },
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/scripts/commit_message_guard.sh",
-            "description": "Commit message template guard"
           }
         ]
       }
