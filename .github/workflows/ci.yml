@@ -44,15 +44,7 @@ jobs:
         run: uv run mypy app
 
       - name: Test
-        run: uv run pytest --cov=app --cov-report=xml --cov-report=term
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        if: always()
-        with:
-          files: ./backend/coverage.xml
-          flags: backend
-          token: ${{ secrets.CODECOV_TOKEN }}
+        run: uv run pytest --cov=app
 
   frontend:
     name: Frontend
@@ -83,15 +75,7 @@ jobs:
         run: npx vue-tsc --noEmit
 
       - name: Test
-        run: npm run test:coverage
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        if: always()
-        with:
-          files: ./frontend/coverage/coverage-final.json
-          flags: frontend
-          token: ${{ secrets.CODECOV_TOKEN }}
+        run: npm run test:run
 
       - name: Build
         run: npm run build

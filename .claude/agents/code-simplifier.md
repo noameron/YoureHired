@@ -158,6 +158,19 @@ Process issues in this order:
 
 ---
 
+## Scope Boundaries
+
+**Do NOT suggest:**
+- Adding new dependencies, services, or integrations
+- New features or improvements beyond simplification scope
+- External tools, coverage services, or monitoring
+
+**Focus strictly on:**
+- Removing dead code (unused imports, variables, functions)
+- Reducing unnecessary complexity
+
+---
+
 ## Project-Specific Context
 
 This project uses:

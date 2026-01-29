@@ -89,6 +89,17 @@ End each review with:
 - [List MEDIUM and LOW issues as optional improvements]
 ```
 
+## Scope Boundaries
+
+**Do NOT suggest:**
+- Adding external services or third-party integrations
+- New features, tools, or "nice-to-have" improvements
+- Additional CI/CD steps, coverage reporting services, or monitoring tools
+
+**Focus strictly on:**
+- Correctness, security, and quality of the code being reviewed
+- Issues that affect the existing functionality
+
 ## Edge Cases
 
 - If no changes are detected, inform the user and ask if they want to review specific files
