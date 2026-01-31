@@ -4,10 +4,11 @@ Drill generation orchestration service.
 Coordinates generator agents in parallel, then uses an evaluator
 to select the best drill.
 """
+
 import asyncio
 from collections.abc import AsyncGenerator
 
-from agents import Runner
+from agents import Agent, Runner
 from agents.exceptions import (
     InputGuardrailTripwireTriggered,
     OutputGuardrailTripwireTriggered,
@@ -151,7 +152,7 @@ async def generate_drill(
     generators = ALL_GENERATORS[:HOW_MANY_GENERATORS]
 
     async def run_generator(
-        agent, drill_type: DrillType
+        agent: Agent[DrillCandidate], drill_type: DrillType
     ) -> DrillCandidate | None:
         """Run a single generator with error handling."""
         try:
@@ -172,8 +173,7 @@ async def generate_drill(
 
     # Execute in parallel
     tasks = [
-        asyncio.create_task(run_generator(agent, drill_type))
-        for agent, drill_type, _ in generators
+        asyncio.create_task(run_generator(agent, drill_type)) for agent, drill_type, _ in generators
     ]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -228,7 +228,7 @@ async def generate_drill_stream(
         candidates: list[DrillCandidate] = []
 
         async def run_generator_with_status(
-            agent, drill_type: DrillType, desc: str
+            agent: Agent[DrillCandidate], drill_type: DrillType, desc: str
         ) -> tuple[str, DrillCandidate | str | None, str]:
             """Run generator and return status tuple."""
             try:
@@ -315,8 +315,7 @@ async def generate_drill_stream(
         reasoning_preview = evaluation.selection_reasoning[:100]
         yield {
             "type": "status",
-            "message": f"Selected: {evaluation.selected_generator.value} - "
-            f"{reasoning_preview}...",
+            "message": f"Selected: {evaluation.selected_generator.value} - {reasoning_preview}...",
         }
 
         yield {"type": "complete", "data": evaluation.selected_drill.model_dump()}
