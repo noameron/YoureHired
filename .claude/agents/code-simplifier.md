@@ -164,6 +164,7 @@ Process issues in this order:
 - Adding new dependencies, services, or integrations
 - New features or improvements beyond simplification scope
 - External tools, coverage services, or monitoring
+- Third-party tools or services of any kind
 
 **Focus strictly on:**
 - Removing dead code (unused imports, variables, functions)
