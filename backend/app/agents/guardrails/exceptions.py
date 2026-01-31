@@ -9,6 +9,4 @@ SAFE_INJECTION_MESSAGE = (
     "Unable to process this request. Please provide a valid company name and role."
 )
 
-SAFE_LEAKAGE_MESSAGE = (
-    "Research completed but results could not be displayed. Please try again."
-)
+SAFE_LEAKAGE_MESSAGE = "Research completed but results could not be displayed. Please try again."
