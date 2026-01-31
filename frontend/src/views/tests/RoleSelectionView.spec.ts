@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
+import type { ComponentPublicInstance } from 'vue'
 import { setActivePinia, createPinia } from 'pinia'
 import RoleSelectionView from '../RoleSelectionView.vue'
 import * as api from '@/services/api'
 import type { RolesResponse, UserSelectionResponse } from '@/types/api'
+
+type TestWrapper = VueWrapper<ComponentPublicInstance>
 
 // Mock the API module
 vi.mock('@/services/api')
@@ -157,21 +160,21 @@ describe('RoleSelectionView', () => {
     it.each([
       {
         description: 'missing company name',
-        setup: async (wrapper: any) => {
+        setup: async (wrapper: TestWrapper) => {
           await wrapper.find('select[name="role"]').setValue('backend_developer')
         },
         errorTestId: 'error-companyName'
       },
       {
         description: 'missing role',
-        setup: async (wrapper: any) => {
+        setup: async (wrapper: TestWrapper) => {
           await wrapper.find('input[name="companyName"]').setValue('Test Corp')
         },
         errorTestId: 'error-role'
       },
       {
         description: 'company name too short',
-        setup: async (wrapper: any) => {
+        setup: async (wrapper: TestWrapper) => {
           await wrapper.find('input[name="companyName"]').setValue('A')
           await wrapper.find('select[name="role"]').setValue('backend_developer')
         },
@@ -179,7 +182,7 @@ describe('RoleSelectionView', () => {
       },
       {
         description: 'company name too long',
-        setup: async (wrapper: any) => {
+        setup: async (wrapper: TestWrapper) => {
           await wrapper.find('input[name="companyName"]').setValue('A'.repeat(101))
           await wrapper.find('select[name="role"]').setValue('backend_developer')
         },
@@ -187,7 +190,7 @@ describe('RoleSelectionView', () => {
       },
       {
         description: 'role description too short',
-        setup: async (wrapper: any) => {
+        setup: async (wrapper: TestWrapper) => {
           await wrapper.find('input[name="companyName"]').setValue('Test Corp')
           await wrapper.find('select[name="role"]').setValue('backend_developer')
           await wrapper.find('textarea[name="roleDescription"]').setValue('Short')
