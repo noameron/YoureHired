@@ -1,7 +1,9 @@
 """
 API endpoints for drill generation.
 """
+
 import json
+from collections.abc import AsyncGenerator
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -97,7 +99,7 @@ async def stream_drill_generation(session_id: str) -> StreamingResponse:
 
     if not session:
 
-        async def error_gen():
+        async def error_gen() -> AsyncGenerator[str, None]:
             yield f"data: {json.dumps({'type': 'error', 'message': 'Session not found'})}\n\n"
 
         return StreamingResponse(
@@ -105,7 +107,7 @@ async def stream_drill_generation(session_id: str) -> StreamingResponse:
             media_type="text/event-stream",
         )
 
-    async def event_generator():
+    async def event_generator() -> AsyncGenerator[str, None]:
         company_summary = session.company_summary
 
         # If no research done yet, run it first
@@ -123,10 +125,15 @@ async def stream_drill_generation(session_id: str) -> StreamingResponse:
 
                     company_summary = CompanySummary.model_validate(event["data"])
                     session_store.update_company_summary(session_id, company_summary)
-                    yield f"data: {json.dumps({'type': 'status', 'message': 'Research complete, generating drill...'})}\n\n"
+                    status = {"type": "status", "message": "Research complete, generating drill..."}
+                    yield f"data: {json.dumps(status)}\n\n"
                 elif event["type"] == "error":
                     # Research failed - continue without company context (degraded mode)
-                    yield f"data: {json.dumps({'type': 'status', 'message': 'Research unavailable, continuing without company context...'})}\n\n"
+                    status = {
+                        "type": "status",
+                        "message": "Research unavailable, continuing without company context...",
+                    }
+                    yield f"data: {json.dumps(status)}\n\n"
 
         # Now generate the drill
         generated_drill = None
@@ -140,6 +147,7 @@ async def stream_drill_generation(session_id: str) -> StreamingResponse:
             # Capture the drill when complete
             if event["type"] == "complete" and "data" in event:
                 from app.schemas.drill import Drill
+
                 generated_drill = Drill.model_validate(event["data"])
                 session_store.update_current_drill(session_id, generated_drill)
             yield f"data: {json.dumps(event)}\n\n"
