@@ -27,24 +27,26 @@ You MUST get user approval for EACH change before applying it. Never batch-apply
 
 ## Analysis Commands
 
+**IMPORTANT:** Use `|| true` on all linting commands to prevent exit code 1 from failing parallel execution. Finding issues is expected, not an error.
+
 ### Python (backend/)
 
 ```bash
 # Dead imports
-cd backend && uv run ruff check --select=F401 --output-format=json .
+cd backend && uv run ruff check --select=F401 --output-format=json . || true
 
 # Unused variables
-cd backend && uv run ruff check --select=F841 --output-format=json .
+cd backend && uv run ruff check --select=F841 --output-format=json . || true
 
 # High complexity
-cd backend && uv run ruff check --select=C901 --output-format=json .
+cd backend && uv run ruff check --select=C901 --output-format=json . || true
 ```
 
 ### TypeScript/Vue (frontend/)
 
 ```bash
 # ESLint check
-cd frontend && npm run lint -- --format json 2>/dev/null
+cd frontend && npm run lint -- --format json 2>/dev/null || true
 ```
 
 ---
