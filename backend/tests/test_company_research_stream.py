@@ -64,10 +64,9 @@ class TestStreamCompanyResearchSessionNotFound:
 class TestStreamCompanyResearchHeaders:
     """Tests for SSE headers in streaming endpoint."""
 
-    async def test_stream_headers_set_correctly(
-        self, client: AsyncClient, test_session_id: str
-    ):
+    async def test_stream_headers_set_correctly(self, client: AsyncClient, test_session_id: str):
         """Stream response has correct SSE headers."""
+
         # GIVEN a valid session with mocked empty stream
         async def mock_stream(company_name: str, role: str):
             yield {"type": "status", "message": "Test"}

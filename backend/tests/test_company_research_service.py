@@ -1,7 +1,7 @@
 """Tests for company research timeout behavior."""
 
 import asyncio
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -29,9 +29,7 @@ class TestCompanyResearchTimeout:
                 await asyncio.sleep(0.1)  # 100ms > 10ms timeout
 
             with patch("app.services.company_research.Runner.run", side_effect=slow_runner):
-                events = await collect_events(
-                    research_company_stream("TestCo", "Developer")
-                )
+                events = await collect_events(research_company_stream("TestCo", "Developer"))
 
         assert events[-1]["type"] == "error"
         assert "timed out" in events[-1]["message"].lower()
@@ -72,9 +70,7 @@ class TestCompanyResearchTimeout:
                 return MagicMock()
 
             with patch("app.services.company_research.Runner.run", side_effect=mock_runner):
-                events = await collect_events(
-                    research_company_stream("TestCo", "Developer")
-                )
+                events = await collect_events(research_company_stream("TestCo", "Developer"))
 
         # Should have continued despite one timeout
         status_messages = [e["message"] for e in events if e["type"] == "status"]
