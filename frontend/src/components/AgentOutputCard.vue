@@ -4,6 +4,7 @@ defineProps<{
   status: 'pending' | 'running' | 'complete' | 'error'
   output: string | null
   error?: string
+  streamingMessage?: string | null
 }>()
 </script>
 
@@ -82,9 +83,9 @@ defineProps<{
       </p>
       <p
         v-else-if="status === 'running'"
-        class="status-text"
+        class="status-text streaming-text"
       >
-        Researching...
+        {{ streamingMessage || 'Processing...' }}
       </p>
       <p
         v-else-if="status === 'error'"
@@ -199,6 +200,20 @@ defineProps<{
 
 .status-text.muted {
   color: var(--text-muted);
+}
+
+.streaming-text {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 .error-text {

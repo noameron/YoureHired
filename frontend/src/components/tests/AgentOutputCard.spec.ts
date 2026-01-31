@@ -129,7 +129,40 @@ describe('AgentOutputCard', () => {
       expect(wrapper.find('svg').exists()).toBe(false)
     })
 
-    it('displays "Researching..." text', () => {
+    it('displays default "Processing..." text when no streamingMessage', () => {
+      // GIVEN - status is running without streamingMessage
+      const wrapper = mount(AgentOutputCard, {
+        props: {
+          name: 'Test Agent',
+          status: 'running',
+          output: null
+        }
+      })
+
+      // THEN - default processing text is displayed
+      const statusText = wrapper.find('.status-text')
+      expect(statusText.exists()).toBe(true)
+      expect(statusText.text()).toBe('Processing...')
+    })
+
+    it('displays streamingMessage when provided', () => {
+      // GIVEN - status is running with streamingMessage
+      const wrapper = mount(AgentOutputCard, {
+        props: {
+          name: 'Test Agent',
+          status: 'running',
+          output: null,
+          streamingMessage: 'Analyzing company data...'
+        }
+      })
+
+      // THEN - streaming message is displayed
+      const statusText = wrapper.find('.status-text')
+      expect(statusText.exists()).toBe(true)
+      expect(statusText.text()).toBe('Analyzing company data...')
+    })
+
+    it('has streaming-text class when running', () => {
       // GIVEN - status is running
       const wrapper = mount(AgentOutputCard, {
         props: {
@@ -139,10 +172,9 @@ describe('AgentOutputCard', () => {
         }
       })
 
-      // THEN - researching text is displayed
+      // THEN - status text has streaming-text class for animation
       const statusText = wrapper.find('.status-text')
-      expect(statusText.exists()).toBe(true)
-      expect(statusText.text()).toBe('Researching...')
+      expect(statusText.classes()).toContain('streaming-text')
     })
   })
 
