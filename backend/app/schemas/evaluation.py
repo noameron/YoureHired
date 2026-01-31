@@ -1,6 +1,7 @@
 """
 Pydantic models for solution evaluation.
 """
+
 from pydantic import BaseModel, Field
 
 
@@ -22,15 +23,9 @@ class ImprovementItem(BaseModel):
 class SolutionFeedback(BaseModel):
     """Structured feedback on a user's solution."""
 
-    score: float = Field(
-        ge=0.0, le=10.0, description="Overall score from 0-10"
-    )
-    strengths: list[StrengthItem] = Field(
-        description="List of strengths in the solution"
-    )
-    improvements: list[ImprovementItem] = Field(
-        description="List of areas for improvement"
-    )
+    score: float = Field(ge=0.0, le=10.0, description="Overall score from 0-10")
+    strengths: list[StrengthItem] = Field(description="List of strengths in the solution")
+    improvements: list[ImprovementItem] = Field(description="List of areas for improvement")
     summary_for_next_drill: str = Field(
         max_length=500,
         description="Concise summary for drill generator (max 500 chars)",
@@ -49,9 +44,7 @@ class EvaluationData(BaseModel):
 
     session_id: str
     feedback: SolutionFeedback
-    feedback_file_path: str = Field(
-        description="Path to the saved feedback markdown file"
-    )
+    feedback_file_path: str = Field(description="Path to the saved feedback markdown file")
 
 
 class EvaluationResponse(BaseModel):

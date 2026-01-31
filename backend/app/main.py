@@ -7,8 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 # Load .env from project root before importing agents
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
-from app.api import router as api_router
-from app.config import settings
+from app.api import router as api_router  # noqa: E402
+from app.config import settings  # noqa: E402
 
 app = FastAPI(
     title="YoureHired API",
