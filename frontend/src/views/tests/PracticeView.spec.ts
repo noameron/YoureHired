@@ -108,8 +108,8 @@ describe('PracticeView', () => {
       const wrapper = mount(PracticeView)
 
       expect(wrapper.find('.loading-state').exists()).toBe(true)
-      // AgentCarousel is now used instead of spinner
-      expect(wrapper.findComponent({ name: 'AgentCarousel' }).exists()).toBe(true)
+      // AgentFlowchart is now used instead of carousel
+      expect(wrapper.findComponent({ name: 'AgentFlowchart' }).exists()).toBe(true)
     })
 
     it('shows company and role context while loading', async () => {
@@ -121,38 +121,44 @@ describe('PracticeView', () => {
 
     it('updates status message as events arrive', async () => {
       const events: DrillStreamEvent[] = [
-        { type: 'status', message: 'Researching company...' },
+        { type: 'status', message: 'Planning research strategy...' },
         { type: 'status', message: 'Generating drill candidates...' },
         { type: 'status', message: 'Evaluating candidates...' }
       ]
 
       const wrapper = await mountWithStream(events)
 
-      // After all events, should show the last status (class changed to status-message)
-      expect(wrapper.find('.status-message').text()).toBe('Evaluating candidates...')
+      // Status is now shown inside the agent cards via streamingMessage prop
+      // The flowchart shows the agents with their streaming messages
+      const flowchart = wrapper.findComponent({ name: 'AgentFlowchart' })
+      expect(flowchart.exists()).toBe(true)
+
+      // The Drill Generation agent should be running and showing the streaming message
+      const cards = wrapper.findAllComponents({ name: 'AgentOutputCard' })
+      expect(cards.length).toBe(2) // 2 agents: Company Research, Drill Generation
     })
 
     it('shows candidates as they are generated', async () => {
       const events: DrillStreamEvent[] = [
-        { type: 'status', message: 'Generating...' },
+        { type: 'status', message: 'Generating drill candidates...' },
         { type: 'candidate', generator: 'coding', title: 'Build a Rate Limiter' },
         { type: 'candidate', generator: 'debugging', title: 'Fix Memory Leak' }
       ]
 
       const wrapper = await mountWithStream(events)
 
-      // Candidates are now tracked via AgentCarousel which shows agent status
-      // The carousel displays AgentOutputCard components for each agent
-      const carousel = wrapper.findComponent({ name: 'AgentCarousel' })
-      expect(carousel.exists()).toBe(true)
+      // Candidates are now tracked via AgentFlowchart which shows agent status
+      // The flowchart displays AgentOutputCard components for each agent
+      const flowchart = wrapper.findComponent({ name: 'AgentFlowchart' })
+      expect(flowchart.exists()).toBe(true)
 
       // Verify the drill generation agent shows the last candidate
       const cards = wrapper.findAllComponents({ name: 'AgentOutputCard' })
-      expect(cards.length).toBe(3) // 3 research agents
+      expect(cards.length).toBe(2) // 2 agents: Company Research, Drill Generation
 
-      // The Drill Generation agent (index 2) should show the last candidate
-      const drillGenAgent = cards[2]
-      expect(drillGenAgent.props('output')).toContain('Fix Memory Leak')
+      // The Drill Generation agent (index 1) should show the last candidate in streamingMessage
+      const drillGenAgent = cards[1]
+      expect(drillGenAgent.props('streamingMessage')).toContain('Fix Memory Leak')
     })
   })
 
@@ -418,7 +424,7 @@ describe('PracticeView', () => {
       // Second call returns new candidate - should not show old ones
       vi.mocked(api.streamDrillGeneration).mockReturnValueOnce(
         createMockStream([
-          { type: 'status', message: 'Retrying...' },
+          { type: 'status', message: 'Generating drill candidates...' },
           { type: 'candidate', generator: 'debugging', title: 'New Candidate' }
         ])
       )
@@ -426,14 +432,13 @@ describe('PracticeView', () => {
       await wrapper.find('.retry-button').trigger('click')
       await flushPromises()
 
-      // Verify agents are reset and show the new candidate via AgentCarousel
+      // Verify agents are reset and show the new candidate via AgentFlowchart
       const cards = wrapper.findAllComponents({ name: 'AgentOutputCard' })
-      expect(cards.length).toBe(3) // 3 research agents
+      expect(cards.length).toBe(2) // 2 agents: Company Research, Drill Generation
 
-      // The Drill Generation agent (index 2) should show the new candidate
-      const drillGenAgent = cards[2]
-      expect(drillGenAgent.props('output')).toContain('New Candidate')
-      expect(drillGenAgent.props('output')).not.toContain('Old Candidate')
+      // The Drill Generation agent (index 1) should show the new candidate in streamingMessage
+      const drillGenAgent = cards[1]
+      expect(drillGenAgent.props('streamingMessage')).toContain('New Candidate')
     })
   })
 

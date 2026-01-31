@@ -6,8 +6,8 @@ import { streamDrillGeneration } from '@/services/api'
 import type { Drill, DrillStreamCandidateEvent } from '@/services/types'
 import { useHints, useSolution } from './practice/usePractice'
 import FeedbackCard from '@/components/FeedbackCard.vue'
-import AgentCarousel from '@/components/AgentCarousel.vue'
-import type { AgentData } from '@/components/AgentCarousel.vue'
+import AgentFlowchart from '@/components/AgentFlowchart.vue'
+import type { FlowchartAgent } from '@/components/AgentFlowchart.vue'
 
 const router = useRouter()
 const store = useUserSelectionStore()
@@ -27,11 +27,10 @@ const drill = ref<Drill | null>(null)
 const drillCandidates = ref<DrillStreamCandidateEvent[]>([])
 const error = ref<string | null>(null)
 
-// Research agents for carousel
-const researchAgents = ref<AgentData[]>([
-  { id: 1, name: 'Company Research', status: 'pending', output: null },
-  { id: 2, name: 'Role Analysis', status: 'pending', output: null },
-  { id: 3, name: 'Drill Generation', status: 'pending', output: null }
+// Research agents for flowchart (2 agents matching backend phases)
+const researchAgents = ref<FlowchartAgent[]>([
+  { id: 1, name: 'Company Research', status: 'pending', output: null, streamingMessage: null },
+  { id: 2, name: 'Drill Generation', status: 'pending', output: null, streamingMessage: null }
 ])
 
 const allResearchComplete = computed(() =>
@@ -40,61 +39,85 @@ const allResearchComplete = computed(() =>
 
 function resetAgents() {
   researchAgents.value = [
-    { id: 1, name: 'Company Research', status: 'pending', output: null },
-    { id: 2, name: 'Role Analysis', status: 'pending', output: null },
-    { id: 3, name: 'Drill Generation', status: 'pending', output: null }
+    { id: 1, name: 'Company Research', status: 'pending', output: null, streamingMessage: null },
+    { id: 2, name: 'Drill Generation', status: 'pending', output: null, streamingMessage: null }
   ]
 }
 
 function updateAgentFromStatus(message: string) {
   const lowerMsg = message.toLowerCase()
 
-  // Company research agent
-  if (lowerMsg.includes('company') || lowerMsg.includes('research')) {
+  // Company Research agent keywords
+  const isCompanyResearch =
+    lowerMsg.includes('research') ||
+    lowerMsg.includes('company') ||
+    lowerMsg.includes('planning') ||
+    lowerMsg.includes('found') ||
+    lowerMsg.includes('completed') ||
+    lowerMsg.includes('analyzing')
+
+  // Drill Generation agent keywords
+  const isDrillGeneration =
+    lowerMsg.includes('drill') ||
+    lowerMsg.includes('generat') ||
+    lowerMsg.includes('candidate') ||
+    lowerMsg.includes('evaluat') ||
+    lowerMsg.includes('selected')
+
+  if (isDrillGeneration) {
+    // Drill generation starting means company research is complete
+    const companyAgent = researchAgents.value[0]
+    if (companyAgent && companyAgent.status === 'running') {
+      companyAgent.status = 'complete'
+      companyAgent.output = 'Research complete'
+      companyAgent.streamingMessage = null
+    }
+
+    const drillAgent = researchAgents.value[1]
+    if (drillAgent) {
+      if (drillAgent.status === 'pending') {
+        drillAgent.status = 'running'
+      }
+      drillAgent.streamingMessage = message
+    }
+  } else if (isCompanyResearch) {
     const agent = researchAgents.value[0]
     if (agent) {
       if (agent.status === 'pending') {
         agent.status = 'running'
       }
-      agent.output = message
-    }
-  }
-
-  // Role analysis agent
-  if (lowerMsg.includes('role') || lowerMsg.includes('context') || lowerMsg.includes('position')) {
-    const agent = researchAgents.value[1]
-    if (agent) {
-      if (agent.status === 'pending') {
-        agent.status = 'running'
-      }
-      agent.output = message
-    }
-  }
-
-  // Drill generation agent - triggered by generation messages
-  if (lowerMsg.includes('generat') || lowerMsg.includes('drill') || lowerMsg.includes('candidate')) {
-    const agent = researchAgents.value[2]
-    if (agent) {
-      if (agent.status === 'pending') {
-        agent.status = 'running'
-      }
-      agent.output = message
+      agent.streamingMessage = message
     }
   }
 }
 
 function updateAgentFromCandidate(candidate: DrillStreamCandidateEvent) {
-  const agent = researchAgents.value[2]
-  if (agent) {
-    agent.status = 'running'
-    agent.output = `Generated: ${candidate.title}`
+  // Ensure company research is complete when we get candidates
+  const companyAgent = researchAgents.value[0]
+  if (companyAgent && companyAgent.status !== 'complete') {
+    companyAgent.status = 'complete'
+    companyAgent.output = 'Research complete'
+    companyAgent.streamingMessage = null
+  }
+
+  const drillAgent = researchAgents.value[1]
+  if (drillAgent) {
+    drillAgent.status = 'running'
+    drillAgent.streamingMessage = `Generated: ${candidate.title}`
   }
 }
 
 function markAllAgentsComplete() {
-  researchAgents.value.forEach((agent) => {
+  researchAgents.value.forEach((agent, index) => {
     if (agent.status !== 'error') {
       agent.status = 'complete'
+      agent.streamingMessage = null
+      // Set completion output text
+      if (index === 0) {
+        agent.output = 'Research complete'
+      } else if (index === 1) {
+        agent.output = 'Drill generated'
+      }
     }
   })
 }
@@ -174,13 +197,8 @@ onMounted(() => {
           {{ store.companyName }} - {{ store.role }}
         </p>
 
-        <!-- Agent Carousel -->
-        <AgentCarousel :agents="researchAgents" />
-
-        <!-- Current status -->
-        <p class="status-message">
-          {{ currentStatus }}
-        </p>
+        <!-- Agent Flowchart -->
+        <AgentFlowchart :agents="researchAgents" />
 
         <!-- Transition arrow (appears when all research complete) -->
         <div
@@ -389,11 +407,6 @@ onMounted(() => {
   margin-bottom: var(--space-6);
 }
 
-.status-message {
-  margin-top: var(--space-6);
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-}
 
 /* Transition Arrow */
 .transition-arrow {

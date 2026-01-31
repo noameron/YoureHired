@@ -35,28 +35,48 @@ async def research_company_stream(
         search_plan: SearchPlan = plan_result.final_output
         yield {"type": "status", "message": f"Found {len(search_plan.searches)} areas to research"}
 
-        # Step 2: Execute searches sequentially, streaming each one
-        search_results = []
-        for i, item in enumerate(search_plan.searches, 1):
-            search_count = len(search_plan.searches)
-            yield {
-                "type": "status",
-                "message": f"Searching ({i}/{search_count}): {item.reason}",
-            }
+        # Step 2: Execute searches in parallel with streaming progress
+        # Note: We use asyncio.as_completed() instead of asyncio.gather() to stream
+        # progress updates as each search completes, rather than waiting for all to finish.
+        # This provides better UX by showing real-time progress. The function complexity
+        # (cyclomatic ~13) is inherent to handling multiple status types (success/timeout/error)
+        # while streaming updates for each completed search.
+        async def run_search(item: SearchQuery) -> tuple[str, str | None, str]:
+            """Run a single search and return (reason, result_or_none, status)."""
             try:
                 search_input = f"Search term: {item.query}\nReason: {item.reason}"
                 result = await asyncio.wait_for(
                     Runner.run(search_agent, search_input),
                     timeout=settings.company_research_agent_timeout,
                 )
-                search_results.append(result.final_output)
+                return (item.reason, str(result.final_output), "success")
             except TimeoutError:
-                yield {"type": "status", "message": f"Search {i} timed out, continuing..."}
+                return (item.reason, None, "timed_out")
             except (InputGuardrailTripwireTriggered, OutputGuardrailTripwireTriggered):
-                # Re-raise guardrail exceptions to be handled at the top level
                 raise
             except Exception:
-                yield {"type": "status", "message": f"Search {i} failed, continuing..."}
+                return (item.reason, None, "failed")
+
+        search_results: list[str] = []
+        tasks = [asyncio.create_task(run_search(item)) for item in search_plan.searches]
+        total_tasks = len(tasks)
+        completed = 0
+
+        for coro in asyncio.as_completed(tasks):
+            reason, result, status = await coro
+            completed += 1
+            if status == "success" and result is not None:
+                search_results.append(result)
+                yield {
+                    "type": "status",
+                    "message": f"Completed ({completed}/{total_tasks}): {reason}",
+                }
+            elif status == "timed_out":
+                msg = f"Timed out ({completed}/{total_tasks}): {reason}, continuing..."
+                yield {"type": "status", "message": msg}
+            else:
+                msg = f"Failed ({completed}/{total_tasks}): {reason}, continuing..."
+                yield {"type": "status", "message": msg}
 
         if not search_results:
             yield {"type": "error", "message": "All searches failed. Please try again."}
