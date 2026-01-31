@@ -4,10 +4,11 @@ Drill generation orchestration service.
 Coordinates generator agents in parallel, then uses an evaluator
 to select the best drill.
 """
+
 import asyncio
 from collections.abc import AsyncGenerator
 
-from agents import Runner
+from agents import Agent, Runner
 from agents.exceptions import (
     InputGuardrailTripwireTriggered,
     OutputGuardrailTripwireTriggered,
@@ -151,7 +152,7 @@ async def generate_drill(
     generators = ALL_GENERATORS[:HOW_MANY_GENERATORS]
 
     async def run_generator(
-        agent, drill_type: DrillType
+        agent: Agent[DrillCandidate], drill_type: DrillType
     ) -> DrillCandidate | None:
         """Run a single generator with error handling."""
         try:
@@ -172,8 +173,7 @@ async def generate_drill(
 
     # Execute in parallel
     tasks = [
-        asyncio.create_task(run_generator(agent, drill_type))
-        for agent, drill_type, _ in generators
+        asyncio.create_task(run_generator(agent, drill_type)) for agent, drill_type, _ in generators
     ]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -198,6 +198,102 @@ async def generate_drill(
     return evaluation.selected_drill
 
 
+async def _run_single_generator(
+    agent: Agent[DrillCandidate],
+    drill_type: DrillType,
+    desc: str,
+    generator_input: str,
+) -> tuple[str, DrillCandidate | str | None, str]:
+    """Run a single generator agent and return status tuple."""
+    try:
+        result = await asyncio.wait_for(
+            Runner.run(agent, generator_input),
+            timeout=settings.drill_generation_agent_timeout,
+        )
+        candidate: DrillCandidate = result.final_output
+        candidate.generator_type = drill_type
+        return ("success", candidate, desc)
+    except TimeoutError:
+        return ("timeout", None, desc)
+    except InputGuardrailTripwireTriggered:
+        raise  # Re-raise guardrail exceptions
+    except OutputGuardrailTripwireTriggered:
+        raise  # Re-raise guardrail exceptions
+    except Exception as e:
+        return ("error", str(e), desc)
+
+
+async def _run_generators_parallel(
+    generators: list[tuple[Agent[DrillCandidate], DrillType, str]],
+    generator_input: str,
+) -> AsyncGenerator[tuple[list[DrillCandidate], dict[str, object]], None]:
+    """
+    Run generators in parallel and yield (candidates, event) as they complete.
+    Final yield contains (all_candidates, None).
+    """
+    candidates: list[DrillCandidate] = []
+
+    tasks = [
+        asyncio.create_task(_run_single_generator(agent, dt, desc, generator_input))
+        for agent, dt, desc in generators
+    ]
+
+    for coro in asyncio.as_completed(tasks):
+        status, result, desc = await coro
+
+        if status == "success" and isinstance(result, DrillCandidate):
+            candidate = result
+            candidates.append(candidate)
+            yield candidates, {
+                "type": "candidate",
+                "generator": candidate.generator_type.value,
+                "title": candidate.drill.title,
+            }
+            yield candidates, {
+                "type": "status",
+                "message": f"Generated {desc}: {candidate.drill.title}",
+            }
+        elif status == "timeout":
+            yield candidates, {
+                "type": "status",
+                "message": f"{desc.capitalize()} timed out, continuing...",
+            }
+        else:
+            yield candidates, {
+                "type": "status",
+                "message": f"{desc.capitalize()} failed, continuing...",
+            }
+
+
+async def _evaluate_candidates(
+    company_name: str,
+    role: str,
+    candidates: list[DrillCandidate],
+) -> AsyncGenerator[dict[str, object], None]:
+    """Evaluate multiple candidates and yield the result."""
+    yield {
+        "type": "status",
+        "message": f"Evaluating {len(candidates)} candidates...",
+    }
+
+    evaluator_input = _build_evaluator_input(company_name, role, candidates)
+
+    eval_result = await asyncio.wait_for(
+        Runner.run(evaluator_agent, evaluator_input),
+        timeout=settings.drill_generation_agent_timeout,
+    )
+
+    evaluation: DrillEvaluation = eval_result.final_output
+
+    reasoning_preview = evaluation.selection_reasoning[:100]
+    yield {
+        "type": "status",
+        "message": f"Selected: {evaluation.selected_generator.value} - {reasoning_preview}...",
+    }
+
+    yield {"type": "complete", "data": evaluation.selected_drill.model_dump()}
+
+
 async def generate_drill_stream(
     company_name: str,
     role: str,
@@ -217,7 +313,6 @@ async def generate_drill_stream(
             company_name, role, role_description, company_summary, previous_feedback_summary
         )
 
-        # Select generators based on configuration
         generators = ALL_GENERATORS[:HOW_MANY_GENERATORS]
 
         yield {
@@ -225,111 +320,33 @@ async def generate_drill_stream(
             "message": f"Generating {len(generators)} drill candidates in parallel...",
         }
 
+        # Phase 1: Generate candidates in parallel
         candidates: list[DrillCandidate] = []
+        gen_stream = _run_generators_parallel(generators, generator_input)
+        async for updated_candidates, event in gen_stream:
+            candidates = updated_candidates
+            yield event
 
-        async def run_generator_with_status(
-            agent, drill_type: DrillType, desc: str
-        ) -> tuple[str, DrillCandidate | str | None, str]:
-            """Run generator and return status tuple."""
-            try:
-                result = await asyncio.wait_for(
-                    Runner.run(agent, generator_input),
-                    timeout=settings.drill_generation_agent_timeout,
-                )
-                candidate: DrillCandidate = result.final_output
-                candidate.generator_type = drill_type
-                return ("success", candidate, desc)
-            except TimeoutError:
-                return ("timeout", None, desc)
-            except InputGuardrailTripwireTriggered:
-                raise  # Re-raise guardrail exceptions
-            except OutputGuardrailTripwireTriggered:
-                raise  # Re-raise guardrail exceptions
-            except Exception as e:
-                return ("error", str(e), desc)
-
-        tasks = [
-            asyncio.create_task(run_generator_with_status(agent, dt, desc))
-            for agent, dt, desc in generators
-        ]
-
-        # Process as they complete
-        for coro in asyncio.as_completed(tasks):
-            status, result, desc = await coro
-
-            if status == "success" and isinstance(result, DrillCandidate):
-                candidate = result
-                candidates.append(candidate)
-                yield {
-                    "type": "candidate",
-                    "generator": candidate.generator_type.value,
-                    "title": candidate.drill.title,
-                }
-                yield {
-                    "type": "status",
-                    "message": f"Generated {desc}: {candidate.drill.title}",
-                }
-            elif status == "timeout":
-                yield {
-                    "type": "status",
-                    "message": f"{desc.capitalize()} timed out, continuing...",
-                }
-            else:
-                yield {
-                    "type": "status",
-                    "message": f"{desc.capitalize()} failed, continuing...",
-                }
-
-        # Check if we have any candidates
+        # Phase 2: Handle results
         if not candidates:
-            yield {
-                "type": "error",
-                "message": "All generators failed. Please try again.",
-            }
+            yield {"type": "error", "message": "All generators failed. Please try again."}
             return
 
-        # Single candidate - return directly
         if len(candidates) == 1:
-            yield {
-                "type": "status",
-                "message": "Only one candidate generated, using it directly.",
-            }
+            yield {"type": "status", "message": "Only one candidate generated, using it directly."}
             yield {"type": "complete", "data": candidates[0].drill.model_dump()}
             return
 
-        # Multiple candidates - evaluate
-        yield {
-            "type": "status",
-            "message": f"Evaluating {len(candidates)} candidates...",
-        }
-
-        evaluator_input = _build_evaluator_input(company_name, role, candidates)
-
-        eval_result = await asyncio.wait_for(
-            Runner.run(evaluator_agent, evaluator_input),
-            timeout=settings.drill_generation_agent_timeout,
-        )
-
-        evaluation: DrillEvaluation = eval_result.final_output
-
-        reasoning_preview = evaluation.selection_reasoning[:100]
-        yield {
-            "type": "status",
-            "message": f"Selected: {evaluation.selected_generator.value} - "
-            f"{reasoning_preview}...",
-        }
-
-        yield {"type": "complete", "data": evaluation.selected_drill.model_dump()}
+        # Phase 3: Evaluate multiple candidates
+        async for event in _evaluate_candidates(company_name, role, candidates):
+            yield event
 
     except InputGuardrailTripwireTriggered:
         yield {"type": "error", "message": SAFE_INJECTION_MESSAGE}
     except OutputGuardrailTripwireTriggered:
         yield {"type": "error", "message": SAFE_LEAKAGE_MESSAGE}
     except TimeoutError:
-        yield {
-            "type": "error",
-            "message": "Drill generation timed out. Please try again.",
-        }
+        yield {"type": "error", "message": "Drill generation timed out. Please try again."}
     except ValueError as e:
         yield {"type": "error", "message": str(e)}
     except Exception as e:

@@ -217,7 +217,8 @@ describe('ThemeToggle', () => {
     it('does not crash when toggleTheme is undefined', async () => {
       // GIVEN - useTheme returns undefined toggleTheme (defensive test)
       // This should not happen in production, but tests defensive coding
-      vi.mocked(mockToggleTheme).mockImplementation(undefined as any)
+      // @ts-expect-error Testing undefined toggleTheme - defensive edge case
+      vi.mocked(mockToggleTheme).mockImplementation(undefined)
       wrapper = mount(ThemeToggle)
 
       // WHEN - attempting to click (if toggleTheme was optional)

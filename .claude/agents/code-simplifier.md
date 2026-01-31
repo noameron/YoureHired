@@ -27,24 +27,26 @@ You MUST get user approval for EACH change before applying it. Never batch-apply
 
 ## Analysis Commands
 
+**IMPORTANT:** Use `|| true` on all linting commands to prevent exit code 1 from failing parallel execution. Finding issues is expected, not an error.
+
 ### Python (backend/)
 
 ```bash
 # Dead imports
-cd backend && uv run ruff check --select=F401 --output-format=json .
+cd backend && uv run ruff check --select=F401 --output-format=json . || true
 
 # Unused variables
-cd backend && uv run ruff check --select=F841 --output-format=json .
+cd backend && uv run ruff check --select=F841 --output-format=json . || true
 
 # High complexity
-cd backend && uv run ruff check --select=C901 --output-format=json .
+cd backend && uv run ruff check --select=C901 --output-format=json . || true
 ```
 
 ### TypeScript/Vue (frontend/)
 
 ```bash
 # ESLint check
-cd frontend && npm run lint -- --format json 2>/dev/null
+cd frontend && npm run lint -- --format json 2>/dev/null || true
 ```
 
 ---
@@ -155,6 +157,20 @@ Process issues in this order:
 1. **HIGH** - Dead imports, unused variables (safe, clear wins)
 2. **MEDIUM** - Long functions, deep nesting (require judgment)
 3. **LOW** - Style issues (optional improvements)
+
+---
+
+## Scope Boundaries
+
+**Do NOT suggest:**
+- Adding new dependencies, services, or integrations
+- New features or improvements beyond simplification scope
+- External tools, coverage services, or monitoring
+- Third-party tools or services of any kind
+
+**Focus strictly on:**
+- Removing dead code (unused imports, variables, functions)
+- Reducing unnecessary complexity
 
 ---
 

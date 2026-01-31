@@ -1,7 +1,10 @@
 import json
+import logging
+from collections.abc import AsyncGenerator
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
+from pydantic import ValidationError
 
 from app.schemas.company_info import (
     CompanyInfoData,
@@ -10,6 +13,8 @@ from app.schemas.company_info import (
 )
 from app.services import research_company, session_store
 from app.services.company_research import research_company_stream
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["company-info"])
 
@@ -43,27 +48,31 @@ async def get_company_info(session_id: str) -> CompanyInfoResponse:
 
 
 @router.get("/company-research/{session_id}/stream")
-async def stream_company_research(session_id: str):
+async def stream_company_research(session_id: str) -> StreamingResponse:
     """Stream company research progress via Server-Sent Events."""
     session = session_store.get(session_id)
 
     if not session:
-        async def error_gen():
+
+        async def error_gen() -> AsyncGenerator[str, None]:
             yield f"data: {json.dumps({'type': 'error', 'message': 'Session not found'})}\n\n"
+
         return StreamingResponse(
             error_gen(),
             media_type="text/event-stream",
         )
 
-    async def event_generator():
+    async def event_generator() -> AsyncGenerator[str, None]:
         async for event in research_company_stream(session.company_name, session.role):
             # Store company summary when research completes
             if event.get("type") == "complete" and "data" in event:
                 try:
-                    summary = CompanySummary(**event["data"])
+                    # event["data"] is already a dict from the research stream
+                    summary = CompanySummary.model_validate(event["data"])
                     session_store.update_company_summary(session_id, summary)
-                except Exception:
-                    pass  # Ignore invalid data, don't block the stream
+                except (ValidationError, TypeError) as e:
+                    # Log but don't block stream on invalid data
+                    logger.warning(f"Failed to parse company summary: {e}")
             yield f"data: {json.dumps(event)}\n\n"
 
     return StreamingResponse(
@@ -73,5 +82,5 @@ async def stream_company_research(session_id: str):
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
-        }
+        },
     )

@@ -1,4 +1,5 @@
 """Tests for drill generation service orchestration."""
+
 import asyncio
 from unittest.mock import MagicMock, patch
 
@@ -26,9 +27,7 @@ class TestBuildGeneratorInput:
 
     def test_with_role_description(self):
         """Input with role description."""
-        result = _build_generator_input(
-            "Meta", "Frontend Developer", "React expertise required"
-        )
+        result = _build_generator_input("Meta", "Frontend Developer", "React expertise required")
         assert "Role Description: React expertise required" in result
 
     def test_with_company_summary(self):
@@ -114,9 +113,7 @@ class TestDrillGenerationTimeout:
             async def slow_runner(agent, input_str):
                 await asyncio.sleep(0.1)  # All exceed timeout
 
-            with patch(
-                "app.services.drill_generation.Runner.run", side_effect=slow_runner
-            ):
+            with patch("app.services.drill_generation.Runner.run", side_effect=slow_runner):
                 events = []
                 async for event in generate_drill_stream("TestCo", "Developer"):
                     events.append(event)
@@ -149,9 +146,7 @@ class TestDrillGenerationTimeout:
                 result.final_output.drill.model_dump = lambda: {"title": "Test"}
                 return result
 
-            with patch(
-                "app.services.drill_generation.Runner.run", side_effect=mock_runner
-            ):
+            with patch("app.services.drill_generation.Runner.run", side_effect=mock_runner):
                 events = []
                 async for event in generate_drill_stream("TestCo", "Developer"):
                     events.append(event)

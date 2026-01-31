@@ -38,9 +38,8 @@ if [[ "$STAGED_COUNT" -gt 5 ]]; then
     REASON+="3. For each group, stage the files and commit using this template:\n\n"
     REASON+="   <short description: what changed and why>\n"
     REASON+="   \n"
-    REASON+="   * Modified N files:\n"
-    REASON+="       * path/to/file1\n"
-    REASON+="       * path/to/file2"
+    REASON+="   * path/to/file1\n"
+    REASON+="   * path/to/file2"
 
     jq -n --arg reason "$REASON" '{
       hookSpecificOutput: {
@@ -84,7 +83,6 @@ fi
 COMMIT_MSG=$(echo "$COMMIT_MSG" | awk 'NF{p=1} p{b=b $0 ORS; if(NF){printf "%s",b; b=""}}')
 
 # Build expected values
-EXPECTED_LINE3="* Modified $STAGED_COUNT files:"
 ERRORS=""
 
 # Read message into an array (bash 3.x compatible — no mapfile)
@@ -103,15 +101,10 @@ if [[ -n "${LINES[1]// /}" ]]; then
     ERRORS+="- Line 2 must be a blank separator line.\n"
 fi
 
-# Line 3: "* Modified N files:"
-if [[ "${LINES[2]}" != "$EXPECTED_LINE3" ]]; then
-    ERRORS+="- Line 3 must be exactly: $EXPECTED_LINE3\n"
-fi
-
-# Lines 4+: each staged file as "    * <path>"
-LINE_NUM=3
+# Lines 3+: each staged file as "* <path>"
+LINE_NUM=2
 while IFS= read -r staged_file; do
-    EXPECTED_LINE="    * $staged_file"
+    EXPECTED_LINE="* $staged_file"
     ACTUAL_LINE="${LINES[$LINE_NUM]:-}"
     if [[ "$ACTUAL_LINE" != "$EXPECTED_LINE" ]]; then
         ERRORS+="- Line $((LINE_NUM + 1)) must be: $EXPECTED_LINE\n"
@@ -122,9 +115,8 @@ done <<< "$STAGED_FILES"
 if [[ -n "$ERRORS" ]]; then
     # Build pre-filled template
     TEMPLATE="<short description: what changed and why>\n\n"
-    TEMPLATE+="* Modified $STAGED_COUNT files:\n"
     while IFS= read -r f; do
-        TEMPLATE+="    * $f\n"
+        TEMPLATE+="* $f\n"
     done <<< "$STAGED_FILES"
 
     REASON="COMMIT MESSAGE FORMAT ERROR.\n\n"
@@ -143,3 +135,4 @@ if [[ -n "$ERRORS" ]]; then
 fi
 
 echo "$ALLOW"
+is

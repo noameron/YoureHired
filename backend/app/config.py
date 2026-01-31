@@ -18,9 +18,7 @@ PREDEFINED_ROLES: list[RoleDict] = [
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file="../.env", env_file_encoding="utf-8", extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file="../.env", env_file_encoding="utf-8", extra="ignore")
 
     cors_origins: list[str] = ["http://localhost:3000"]
     debug: bool = False

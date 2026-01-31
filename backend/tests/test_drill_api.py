@@ -1,4 +1,5 @@
 """Tests for drill API endpoints."""
+
 import json
 from unittest.mock import AsyncMock, patch
 
@@ -78,9 +79,7 @@ class TestGenerateDrillEndpoint:
                 transport=ASGITransport(app=app),
                 base_url="http://test",
             ) as client:
-                response = await client.post(
-                    f"/api/generate-drill/{test_session.session_id}"
-                )
+                response = await client.post(f"/api/generate-drill/{test_session.session_id}")
 
         assert response.status_code == 200
         data = response.json()
@@ -113,9 +112,7 @@ class TestGenerateDrillEndpoint:
                 transport=ASGITransport(app=app),
                 base_url="http://test",
             ) as client:
-                response = await client.post(
-                    f"/api/generate-drill/{test_session.session_id}"
-                )
+                response = await client.post(f"/api/generate-drill/{test_session.session_id}")
 
         data = response.json()
         assert "generation_metadata" in data["data"]
@@ -158,9 +155,7 @@ class TestStreamDrillEndpoint:
                 transport=ASGITransport(app=app),
                 base_url="http://test",
             ) as client:
-                response = await client.get(
-                    f"/api/generate-drill/{test_session.session_id}/stream"
-                )
+                response = await client.get(f"/api/generate-drill/{test_session.session_id}/stream")
 
         assert response.status_code == 200
         content = response.text
@@ -185,9 +180,7 @@ class TestStreamDrillEndpoint:
                 transport=ASGITransport(app=app),
                 base_url="http://test",
             ) as client:
-                response = await client.get(
-                    f"/api/generate-drill/{test_session.session_id}/stream"
-                )
+                response = await client.get(f"/api/generate-drill/{test_session.session_id}/stream")
 
         assert "text/event-stream" in response.headers["content-type"]
         assert response.headers.get("cache-control") == "no-cache"
@@ -215,9 +208,7 @@ class TestStreamDrillEndpoint:
                 transport=ASGITransport(app=app),
                 base_url="http://test",
             ) as client:
-                response = await client.get(
-                    f"/api/generate-drill/{test_session.session_id}/stream"
-                )
+                response = await client.get(f"/api/generate-drill/{test_session.session_id}/stream")
 
         content = response.text
         lines = [line for line in content.split("\n") if line.startswith("data:")]
@@ -247,9 +238,7 @@ class TestStreamDrillEndpoint:
                 transport=ASGITransport(app=app),
                 base_url="http://test",
             ) as client:
-                response = await client.get(
-                    f"/api/generate-drill/{test_session.session_id}/stream"
-                )
+                response = await client.get(f"/api/generate-drill/{test_session.session_id}/stream")
 
         content = response.text
         assert "error" in content

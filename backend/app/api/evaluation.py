@@ -1,6 +1,7 @@
 """
 API endpoints for solution evaluation.
 """
+
 import asyncio
 from pathlib import Path
 
@@ -56,9 +57,7 @@ def _build_evaluator_input(
     ]
 
     if len(solution) > 10000:
-        parts.append(
-            "(Note: Solution was truncated for evaluation due to length)"
-        )
+        parts.append("(Note: Solution was truncated for evaluation due to length)")
 
     return "\n".join(parts)
 
@@ -136,9 +135,7 @@ async def evaluate_solution(
         )
 
         # Update session with feedback summary for next drill
-        session_store.update_last_feedback_summary(
-            session_id, feedback.summary_for_next_drill
-        )
+        session_store.update_last_feedback_summary(session_id, feedback.summary_for_next_drill)
 
         return EvaluationResponse(
             data=EvaluationData(

@@ -1,6 +1,7 @@
 """
 Feedback persistence service for saving evaluation results as markdown files.
 """
+
 import re
 from datetime import datetime
 from pathlib import Path
@@ -125,44 +126,52 @@ def format_feedback_markdown(
     ]
 
     for strength in feedback.strengths:
-        lines.extend([
-            f"### {strength.title}",
-            "",
-            strength.description,
-            "",
-        ])
+        lines.extend(
+            [
+                f"### {strength.title}",
+                "",
+                strength.description,
+                "",
+            ]
+        )
 
     if not feedback.strengths:
         lines.append("_No specific strengths noted._\n")
 
-    lines.extend([
-        "---",
-        "",
-        "## Areas for Improvement",
-        "",
-    ])
+    lines.extend(
+        [
+            "---",
+            "",
+            "## Areas for Improvement",
+            "",
+        ]
+    )
 
     for improvement in feedback.improvements:
-        lines.extend([
-            f"### {improvement.title}",
-            "",
-            improvement.description,
-            "",
-            f"**Suggestion:** {improvement.suggestion}",
-            "",
-        ])
+        lines.extend(
+            [
+                f"### {improvement.title}",
+                "",
+                improvement.description,
+                "",
+                f"**Suggestion:** {improvement.suggestion}",
+                "",
+            ]
+        )
 
     if not feedback.improvements:
         lines.append("_No specific improvements noted._\n")
 
-    lines.extend([
-        "---",
-        "",
-        "## Summary for Next Practice",
-        "",
-        feedback.summary_for_next_drill,
-        "",
-    ])
+    lines.extend(
+        [
+            "---",
+            "",
+            "## Summary for Next Practice",
+            "",
+            feedback.summary_for_next_drill,
+            "",
+        ]
+    )
 
     return "\n".join(lines)
 
@@ -203,9 +212,7 @@ def save_feedback(
     absolute_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Format content
-    content = format_feedback_markdown(
-        feedback, company_name, role, drill_title, timestamp
-    )
+    content = format_feedback_markdown(feedback, company_name, role, drill_title, timestamp)
 
     # Write file
     absolute_path.write_text(content, encoding="utf-8")

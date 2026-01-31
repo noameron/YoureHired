@@ -19,8 +19,7 @@ from app.schemas.company_info import CompanySummary, SearchPlan, SearchQuery
 
 
 async def research_company_stream(
-    company_name: str,
-    role: str
+    company_name: str, role: str
 ) -> AsyncGenerator[dict[str, object], None]:
     """
     Stream research progress and final results with timeout.
@@ -31,8 +30,7 @@ async def research_company_stream(
         yield {"type": "status", "message": "Planning research strategy..."}
         plan_input = f"Company: {company_name}\nRole: {role}"
         plan_result = await asyncio.wait_for(
-            Runner.run(planner_agent, plan_input),
-            timeout=settings.company_research_agent_timeout
+            Runner.run(planner_agent, plan_input), timeout=settings.company_research_agent_timeout
         )
         search_plan: SearchPlan = plan_result.final_output
         yield {"type": "status", "message": f"Found {len(search_plan.searches)} areas to research"}
@@ -49,7 +47,7 @@ async def research_company_stream(
                 search_input = f"Search term: {item.query}\nReason: {item.reason}"
                 result = await asyncio.wait_for(
                     Runner.run(search_agent, search_input),
-                    timeout=settings.company_research_agent_timeout
+                    timeout=settings.company_research_agent_timeout,
                 )
                 search_results.append(result.final_output)
             except TimeoutError:
@@ -70,7 +68,7 @@ async def research_company_stream(
         summary_input = f"Company: {company_name}\nRole: {role}\n\nResearch:\n{combined}"
         summary_result = await asyncio.wait_for(
             Runner.run(summarizer_agent, summary_input),
-            timeout=settings.company_research_agent_timeout
+            timeout=settings.company_research_agent_timeout,
         )
 
         # Final result

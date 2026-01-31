@@ -57,17 +57,20 @@ class CompanyInfoError(BaseModel):
 # Streaming event models
 class StreamStatusEvent(BaseModel):
     """Event for streaming status updates to frontend."""
+
     type: Literal["status"] = "status"
     message: str
 
 
 class StreamCompleteEvent(BaseModel):
     """Event for streaming final result to frontend."""
+
     type: Literal["complete"] = "complete"
     data: CompanySummary
 
 
 class StreamErrorEvent(BaseModel):
     """Event for streaming errors to frontend."""
+
     type: Literal["error"] = "error"
     message: str

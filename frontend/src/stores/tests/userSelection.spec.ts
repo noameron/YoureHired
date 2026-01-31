@@ -92,7 +92,7 @@ describe('userSelection store', () => {
     it.each([
       {
         description: 'returns false when no selection made',
-        setup: (store: ReturnType<typeof useUserSelectionStore>) => {
+        setup: (_store: ReturnType<typeof useUserSelectionStore>) => {
           // No setup needed - initial state
         },
         expected: false

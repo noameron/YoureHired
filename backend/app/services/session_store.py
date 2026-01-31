@@ -46,9 +46,7 @@ class SessionStore:
             return session
         return None
 
-    def update_company_summary(
-        self, session_id: str, company_summary: "CompanySummary"
-    ) -> bool:
+    def update_company_summary(self, session_id: str, company_summary: "CompanySummary") -> bool:
         """Update session with company research summary."""
         session = self.get(session_id)
         if session:
@@ -64,9 +62,7 @@ class SessionStore:
             return True
         return False
 
-    def update_last_feedback_summary(
-        self, session_id: str, feedback_summary: str
-    ) -> bool:
+    def update_last_feedback_summary(self, session_id: str, feedback_summary: str) -> bool:
         """Update session with last feedback summary for next drill generation."""
         session = self.get(session_id)
         if session:
