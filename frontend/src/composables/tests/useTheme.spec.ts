@@ -27,7 +27,7 @@ describe('useTheme composable', () => {
 
     // Mock document.documentElement
     documentElement = {
-      getAttribute: vi.fn((attr: string) => null),
+      getAttribute: vi.fn((_attr: string) => null),
       setAttribute: vi.fn()
     } as unknown as HTMLElement
     vi.stubGlobal('document', {

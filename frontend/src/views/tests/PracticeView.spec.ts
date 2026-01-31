@@ -4,7 +4,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import PracticeView from '../PracticeView.vue'
 import { useUserSelectionStore } from '@/stores/userSelection'
 import * as api from '@/services/api'
-import type { Drill, DrillStreamEvent, DrillStreamCandidateEvent } from '@/services/types'
+import type { Drill, DrillStreamEvent } from '@/services/types'
 
 // Mock the API module
 vi.mock('@/services/api')
@@ -97,11 +97,10 @@ describe('PracticeView', () => {
     it('shows initial connecting status', async () => {
       setupStoreWithSession()
 
-      // Create a stream that never resolves
+      // Create a stream that never resolves (yield is unreachable but satisfies linter)
       const neverEndingStream = async function* (): AsyncGenerator<DrillStreamEvent> {
-        await new Promise<void>(() => {
-          // Never resolve
-        })
+        await new Promise<void>(() => {})
+        yield { type: 'status', message: '' }
       }
 
       vi.mocked(api.streamDrillGeneration).mockReturnValue(neverEndingStream())
@@ -325,8 +324,9 @@ describe('PracticeView', () => {
     it('shows error when stream throws', async () => {
       setupStoreWithSession()
 
-      vi.mocked(api.streamDrillGeneration).mockImplementation(async function* () {
+      vi.mocked(api.streamDrillGeneration).mockImplementation(async function* (): AsyncGenerator<DrillStreamEvent> {
         throw new Error('Network error')
+        yield { type: 'status', message: '' } // unreachable
       })
 
       const wrapper = mount(PracticeView)
@@ -339,8 +339,9 @@ describe('PracticeView', () => {
     it('shows generic error for non-Error throws', async () => {
       setupStoreWithSession()
 
-      vi.mocked(api.streamDrillGeneration).mockImplementation(async function* () {
+      vi.mocked(api.streamDrillGeneration).mockImplementation(async function* (): AsyncGenerator<DrillStreamEvent> {
         throw 'Unknown error'
+        yield { type: 'status', message: '' } // unreachable
       })
 
       const wrapper = mount(PracticeView)

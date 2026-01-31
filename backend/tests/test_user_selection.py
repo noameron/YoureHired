@@ -179,9 +179,7 @@ class TestCompanyNameValidation:
         # THEN a 422 validation error is returned
         assert response.status_code == 422
 
-    async def test_company_name_with_repeated_symbols_returns_error(
-        self, client: AsyncClient
-    ):
+    async def test_company_name_with_repeated_symbols_returns_error(self, client: AsyncClient):
         """Company name with repeated symbols returns validation error."""
         # GIVEN a company name containing repeated symbols
 
