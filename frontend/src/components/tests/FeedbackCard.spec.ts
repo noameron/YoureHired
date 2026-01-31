@@ -237,7 +237,7 @@ describe('FeedbackCard', () => {
       })
 
       // THEN - all strength titles are rendered
-      const items = wrapper.findAll('.strengths-title').at(0)?.element.parentElement?.querySelectorAll('.feedback-item')
+      const items = wrapper.findAll('.strengths-title')[0]?.element.parentElement?.querySelectorAll('.feedback-item')
       expect(items?.length).toBe(2)
       expect(wrapper.text()).toContain('Strength 1')
       expect(wrapper.text()).toContain('Strength 2')

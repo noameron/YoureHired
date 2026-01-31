@@ -44,6 +44,7 @@ function setupStoreWithSession(sessionId = 'test-session-123') {
   store.setSelection({
     companyName: 'Test Corp',
     role: 'Backend Developer',
+    roleDescription: null,
     sessionId
   })
   return store

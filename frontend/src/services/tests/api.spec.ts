@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { streamDrillGeneration } from '../api'
 import type { DrillStreamEvent } from '../types'
 
+declare const global: { fetch: typeof fetch }
+
 // Helper to create a mock ReadableStream from SSE data
 function createMockSSEStream(events: string[]): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder()
