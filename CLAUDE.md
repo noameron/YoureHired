@@ -97,3 +97,7 @@ backend/            # FastAPI + Python 3.11+
 - Frontend proxies `/api/*` requests to backend (configured in `vite.config.ts`)
 - Backend uses `pydantic-settings` for config; copy `.env.example` to `.env`
 - All backend tests use `httpx.AsyncClient` with `ASGITransport`
+
+## Code Style Guidelines
+
+- **Avoid ESLint disable comments**: Never use `eslint-disable`, `eslint-enable`, or inline `eslint-disable-next-line` comments to suppress lint or compile errors. Instead, fix the underlying issue. If a disable comment is absolutely necessary (e.g., external library limitations, intentional edge cases), always prompt the user first explaining why it's needed and get approval before adding it.
