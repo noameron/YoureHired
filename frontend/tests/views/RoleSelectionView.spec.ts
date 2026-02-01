@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import type { ComponentPublicInstance } from 'vue'
 import { setActivePinia, createPinia } from 'pinia'
-import RoleSelectionView from '../RoleSelectionView.vue'
+import RoleSelectionView from '@/views/RoleSelectionView.vue'
 import * as api from '@/services/api'
 import type { RolesResponse, UserSelectionResponse } from '@/types/api'
 

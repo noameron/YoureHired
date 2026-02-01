@@ -6,13 +6,17 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 
+from app.constants import SSE_HEADERS
 from app.schemas.company_info import (
     CompanyInfoData,
     CompanyInfoResponse,
     CompanySummary,
 )
-from app.services import research_company, session_store
-from app.services.company_research import research_company_stream
+from app.services import session_store
+from app.services.company_research import (
+    consume_research_stream,
+    research_company_stream,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,10 +33,13 @@ async def get_company_info(session_id: str) -> CompanyInfoResponse:
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    summary = await research_company(
-        company_name=session.company_name,
-        role=session.role,
-    )
+    try:
+        summary = await consume_research_stream(
+            company_name=session.company_name,
+            role=session.role,
+        )
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
     # Store summary in session for drill generation
     session_store.update_company_summary(session_id, summary)
@@ -47,40 +54,41 @@ async def get_company_info(session_id: str) -> CompanyInfoResponse:
     )
 
 
+async def _stream_error_session_not_found() -> AsyncGenerator[str, None]:
+    """Generate SSE error for session not found."""
+    yield f"data: {json.dumps({'type': 'error', 'message': 'Session not found'})}\n\n"
+
+
+async def _generate_research_events(
+    session_id: str, company_name: str, role: str
+) -> AsyncGenerator[str, None]:
+    """Generate SSE events for company research stream."""
+    async for event in research_company_stream(company_name, role):
+        # Store company summary when research completes
+        if event.get("type") == "complete" and "data" in event:
+            try:
+                # event["data"] is already a dict from the research stream
+                summary = CompanySummary.model_validate(event["data"])
+                session_store.update_company_summary(session_id, summary)
+            except (ValidationError, TypeError) as e:
+                # Log but don't block stream on invalid data
+                logger.warning(f"Failed to parse company summary: {e}")
+        yield f"data: {json.dumps(event)}\n\n"
+
+
 @router.get("/company-research/{session_id}/stream")
 async def stream_company_research(session_id: str) -> StreamingResponse:
     """Stream company research progress via Server-Sent Events."""
     session = session_store.get(session_id)
 
     if not session:
-
-        async def error_gen() -> AsyncGenerator[str, None]:
-            yield f"data: {json.dumps({'type': 'error', 'message': 'Session not found'})}\n\n"
-
         return StreamingResponse(
-            error_gen(),
+            _stream_error_session_not_found(),
             media_type="text/event-stream",
         )
 
-    async def event_generator() -> AsyncGenerator[str, None]:
-        async for event in research_company_stream(session.company_name, session.role):
-            # Store company summary when research completes
-            if event.get("type") == "complete" and "data" in event:
-                try:
-                    # event["data"] is already a dict from the research stream
-                    summary = CompanySummary.model_validate(event["data"])
-                    session_store.update_company_summary(session_id, summary)
-                except (ValidationError, TypeError) as e:
-                    # Log but don't block stream on invalid data
-                    logger.warning(f"Failed to parse company summary: {e}")
-            yield f"data: {json.dumps(event)}\n\n"
-
     return StreamingResponse(
-        event_generator(),
+        _generate_research_events(session_id, session.company_name, session.role),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
+        headers=SSE_HEADERS,
     )

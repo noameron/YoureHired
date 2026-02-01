@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { streamDrillGeneration } from '../api'
-import type { DrillStreamEvent } from '../types'
+import { streamDrillGeneration } from '@/services/api'
+import type { DrillStreamEvent } from '@/services/types'
 
 declare const global: { fetch: typeof fetch }
 

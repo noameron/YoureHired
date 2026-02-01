@@ -125,6 +125,10 @@ Process in priority order (Critical → Low).
 
 **Complexity:** Functions exceeding limits, deep nesting, long parameter lists
 
+**Control Flow:** Prefer switch/case (or match/case in Python 3.10+) over if/else if chains when comparing a single variable against multiple values
+
+**Structure Violations:** Imports inside functions/classes (must be at file top), nested function definitions (helper functions should be standalone at module level)
+
 ### ❌ DO NOT Suggest
 
 - New features or functionality
@@ -146,6 +150,9 @@ grep -n "^def \|^async def " backend/app/**/*.py
 
 # Exception density
 grep -c "except" backend/app/**/*.py | sort -t: -k2 -n
+
+# If/else if chains (candidates for switch/case)
+grep -n "else if\|elif" frontend/src/**/*.{ts,vue} backend/app/**/*.py
 ```
 
 ## Edge Cases

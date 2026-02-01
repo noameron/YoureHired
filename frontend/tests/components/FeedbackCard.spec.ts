@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
-import FeedbackCard from '../FeedbackCard.vue'
+import FeedbackCard from '@/components/FeedbackCard.vue'
 import type { SolutionFeedback } from '@/services/types'
 
 // Mock feedback data for testing

@@ -92,15 +92,44 @@ backend/            # FastAPI + Python 3.11+
 └── tests/          # pytest async tests
 ```
 
+## Test Structure
+
+Tests are kept in a single `tests/` directory (not scattered in `src/`):
+
+```
+frontend/tests/           # All frontend tests in one place
+├── components/           # Component tests
+├── composables/          # Composable tests
+├── services/             # API/service tests
+├── stores/               # Pinia store tests
+└── views/                # View component tests
+
+backend/tests/            # All backend tests
+└── ...
+```
+
 ## Key Patterns
 
 - Frontend proxies `/api/*` requests to backend (configured in `vite.config.ts`)
 - Backend uses `pydantic-settings` for config; copy `.env.example` to `.env`
 - All backend tests use `httpx.AsyncClient` with `ASGITransport`
 
+### Plan Output Format
+Before presenting any plan, verify:
+- [ ] No branch modifies more than 5 files
+- [ ] Files are grouped by logical cohesion
+- [ ] If >2 branches: base branch strategy is used
+- [ ] Merge order is clearly documented
+
 ## Code Style Guidelines
 
 - **Avoid ESLint disable comments**: Never use `eslint-disable`, `eslint-enable`, or inline `eslint-disable-next-line` comments to suppress lint or compile errors. Instead, fix the underlying issue. If a disable comment is absolutely necessary (e.g., external library limitations, intentional edge cases), always prompt the user first explaining why it's needed and get approval before adding it.
+
+- **No imports inside functions or classes**: Always place imports at the top of the file. Never use imports inside function or class bodies.
+
+- **Avoid nested function definitions**: Helper functions should be defined at module level, not inside other functions. Keep functions standalone for better readability and testability.
+
+- **Use decorators for cleaner code**: Prefer decorators over repetitive boilerplate when they improve readability (e.g., for logging, caching, validation, retry logic).
 
 ## Git Commands
 
