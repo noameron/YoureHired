@@ -1,6 +1,7 @@
 ---
 name: client-code-simplifier
 description: "Client code simplification for Vue 3 + TypeScript + Vite + Pinia stack. Use when user asks to 'simplify frontend code', 'clean up Vue components', 'extract inline styles/SVGs/types', 'reduce component size', or 'prepare frontend for review'. Enforces lean components, proper extraction, and production-ready structure."
+user-invocable: false
 ---
 
 # Client Code Simplification
