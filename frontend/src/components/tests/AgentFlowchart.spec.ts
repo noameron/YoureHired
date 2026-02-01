@@ -61,7 +61,7 @@ describe('AgentFlowchart', () => {
   })
 
   describe('connector states', () => {
-    it('connector is not active when first agent is pending', () => {
+    it('connector is greyed when first agent is pending', () => {
       const agents: FlowchartAgent[] = [
         { id: 1, name: 'Agent 1', status: 'pending', output: null },
         { id: 2, name: 'Agent 2', status: 'pending', output: null }
@@ -71,10 +71,12 @@ describe('AgentFlowchart', () => {
       })
 
       const connector = wrapper.find('.connector')
-      expect(connector.classes()).not.toContain('active')
+      expect(connector.classes()).toContain('greyed')
+      expect(connector.classes()).not.toContain('loading')
+      expect(connector.classes()).not.toContain('complete')
     })
 
-    it('connector is not active when first agent is running', () => {
+    it('connector is greyed when first agent is running', () => {
       const agents: FlowchartAgent[] = [
         { id: 1, name: 'Agent 1', status: 'running', output: null },
         { id: 2, name: 'Agent 2', status: 'pending', output: null }
@@ -84,10 +86,12 @@ describe('AgentFlowchart', () => {
       })
 
       const connector = wrapper.find('.connector')
-      expect(connector.classes()).not.toContain('active')
+      expect(connector.classes()).toContain('greyed')
+      expect(connector.classes()).not.toContain('loading')
+      expect(connector.classes()).not.toContain('complete')
     })
 
-    it('connector becomes active when first agent completes', () => {
+    it('connector becomes complete when first agent completes', () => {
       const agents: FlowchartAgent[] = [
         { id: 1, name: 'Agent 1', status: 'complete', output: 'Done' },
         { id: 2, name: 'Agent 2', status: 'pending', output: null }
@@ -97,10 +101,12 @@ describe('AgentFlowchart', () => {
       })
 
       const connector = wrapper.find('.connector')
-      expect(connector.classes()).toContain('active')
+      expect(connector.classes()).toContain('complete')
+      expect(connector.classes()).not.toContain('greyed')
+      expect(connector.classes()).not.toContain('loading')
     })
 
-    it('connector is active when second agent is running', () => {
+    it('connector is loading when second agent is running', () => {
       const agents: FlowchartAgent[] = [
         { id: 1, name: 'Agent 1', status: 'complete', output: 'Done' },
         { id: 2, name: 'Agent 2', status: 'running', output: null }
@@ -110,7 +116,9 @@ describe('AgentFlowchart', () => {
       })
 
       const connector = wrapper.find('.connector')
-      expect(connector.classes()).toContain('active')
+      expect(connector.classes()).toContain('loading')
+      expect(connector.classes()).not.toContain('greyed')
+      expect(connector.classes()).not.toContain('complete')
     })
   })
 
@@ -187,8 +195,8 @@ describe('AgentFlowchart', () => {
 
       const connectors = wrapper.findAll('.connector')
       expect(connectors.length).toBe(2)
-      expect(connectors[0].classes()).toContain('active')
-      expect(connectors[1].classes()).not.toContain('active')
+      expect(connectors[0].classes()).toContain('loading')
+      expect(connectors[1].classes()).toContain('greyed')
     })
   })
 })

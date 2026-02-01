@@ -28,7 +28,12 @@ cd backend && uv run ruff check --select=C901 . || true  # Won't break siblings
 4. Stop immediately if any verification fails (BLOCKING)
 5. Run `git diff` to see actual changes
 6. Read and analyze each changed file using the review criteria below
-7. Synthesize findings into a comprehensive review
+7. Fix any CRITICAL or HIGH issues found
+8. **MANDATORY: Run ALL verification commands again after making ANY fixes** (same commands as step 3)
+9. If post-fix verification fails, fix the issues and repeat steps 7-8 until all checks pass
+10. Synthesize findings into a comprehensive review
+
+**CRITICAL:** Never skip the post-fix verification in step 8. Always confirm all tests, linters, and type checks pass before completing the review.
 
 ---
 
