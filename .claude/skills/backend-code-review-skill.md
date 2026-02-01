@@ -2,6 +2,8 @@
 name: backend-code-review-skill
 description: Conducts code review on Python 3.11+ and FastAPI backend changes. Checks type hints, Pydantic models, async patterns, security, SOLID principles, and clean code. Used exclusively by pr-review for backend/ directory changes.
 user-invocable: false
+context: fork
+agent: pr-review
 allowed-tools: Bash, Read, Grep, Glob
 ---
 
