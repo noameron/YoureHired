@@ -101,3 +101,14 @@ backend/            # FastAPI + Python 3.11+
 ## Code Style Guidelines
 
 - **Avoid ESLint disable comments**: Never use `eslint-disable`, `eslint-enable`, or inline `eslint-disable-next-line` comments to suppress lint or compile errors. Instead, fix the underlying issue. If a disable comment is absolutely necessary (e.g., external library limitations, intentional edge cases), always prompt the user first explaining why it's needed and get approval before adding it.
+
+## Git Commands
+
+- **Always run git commands from project root**: Use absolute paths or explicitly `cd` to project root before git operations. Working directory may be `frontend/` or `backend/` from earlier commands.
+  ```bash
+  # Good - explicit project root
+  cd /path/to/YoureHired && git add .claude/...
+
+  # Bad - assumes current directory is project root
+  git add .claude/...
+  ```
