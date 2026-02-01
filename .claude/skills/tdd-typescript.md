@@ -1,6 +1,7 @@
 ---
 name: tdd-typescript
 description: Test-Driven Development workflow for TypeScript projects using Vitest. Use when writing new features, fixing bugs, or refactoring TypeScript code. Enforces tests-first development with 80%+ coverage. Triggers on requests to add features, fix bugs, create components, add API endpoints, or refactor code in TypeScript/Vue/Node projects.
+user-invocable: false
 ---
 
 # TDD Workflow for TypeScript/Vitest

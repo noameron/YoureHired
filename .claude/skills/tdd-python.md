@@ -1,7 +1,7 @@
 ---
 name: tdd-python
 description: TDD skill for Python/pytest. GIVEN/WHEN/THEN structure, pytest fixtures, async testing with httpx, mocking. Use for feature dev, bug fixes, refactoring.
-user-invocable: true
+user-invocable: false
 allowed-tools: Bash, Read, Write, Edit, Grep, Glob
 ---
 
