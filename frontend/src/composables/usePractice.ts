@@ -1,22 +1,10 @@
 import { ref } from 'vue'
 import { submitSolution as apiSubmitSolution } from '@/services/api'
 import type { SolutionFeedback } from '@/services/types'
+import { useExpandableList } from './useExpandableList'
 
 export function useHints() {
-  const expandedHints = ref<number[]>([])
-
-  function toggleHint(index: number) {
-    const idx = expandedHints.value.indexOf(index)
-    if (idx > -1) {
-      expandedHints.value.splice(idx, 1)
-    } else {
-      expandedHints.value.push(index)
-    }
-  }
-
-  function isHintExpanded(index: number): boolean {
-    return expandedHints.value.includes(index)
-  }
+  const { expanded: expandedHints, toggle: toggleHint, isExpanded: isHintExpanded } = useExpandableList()
 
   return {
     expandedHints,
