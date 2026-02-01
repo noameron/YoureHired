@@ -12,6 +12,8 @@ allowed-prompts:
     prompt: run npm run lint
   - tool: Bash
     prompt: run npm run test
+context: fork
+agent: pr-review
 ---
 
 # Frontend Code Review Skill
