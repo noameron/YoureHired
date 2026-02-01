@@ -4,6 +4,7 @@ description: "Simplify and clean code before review. Removes dead code, reduces 
 tools: Bash, Glob, Grep, Read, Edit, Write, Skill
 model: sonnet
 color: red
+skills: client-code-simplifier, server-code-simplifier
 ---
 
 # Code Simplifier Agent
