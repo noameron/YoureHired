@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
-import AgentFlowchart from '../AgentFlowchart.vue'
-import type { FlowchartAgent } from '../AgentFlowchart.vue'
+import AgentFlowchart from '@/components/AgentFlowchart.vue'
+import type { FlowchartAgent } from '@/components/AgentFlowchart.vue'
 
 describe('AgentFlowchart', () => {
   const createAgents = (count: number): FlowchartAgent[] => {

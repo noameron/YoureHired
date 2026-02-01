@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
-import PracticeView from '../PracticeView.vue'
+import PracticeView from '@/views/PracticeView.vue'
 import { useUserSelectionStore } from '@/stores/userSelection'
 import * as api from '@/services/api'
 import type { Drill, DrillStreamEvent } from '@/services/types'

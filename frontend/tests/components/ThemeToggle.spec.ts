@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { ref } from 'vue'
-import ThemeToggle from '../ThemeToggle.vue'
+import ThemeToggle from '@/components/ThemeToggle.vue'
 import type { Theme } from '@/composables/useTheme'
 
 // Mock the useTheme composable

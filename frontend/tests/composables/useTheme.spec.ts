@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
-import { useTheme, type Theme } from '../useTheme'
+import { useTheme, type Theme } from '@/composables/useTheme'
 
 describe('useTheme composable', () => {
   let localStorageMock: { [key: string]: string }
