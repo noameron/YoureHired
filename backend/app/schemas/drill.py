@@ -3,7 +3,7 @@ Pydantic models for drill generation system.
 """
 
 from enum import Enum
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -84,6 +84,14 @@ class DrillEvaluation(BaseModel):
 
 
 # API Response Models (following existing patterns from company_info.py)
+class GenerationMetadata(BaseModel):
+    """Metadata about drill generation process."""
+
+    generators_used: list[str] = Field(
+        default_factory=list, description="List of generator types that were used"
+    )
+
+
 class DrillGenerationData(BaseModel):
     """Data payload for drill generation response."""
 
@@ -91,8 +99,8 @@ class DrillGenerationData(BaseModel):
     company_name: str
     role: str
     drill: Drill
-    generation_metadata: dict[str, Any] = Field(
-        default_factory=dict, description="Additional metadata about generation"
+    generation_metadata: GenerationMetadata = Field(
+        default_factory=GenerationMetadata, description="Metadata about generation"
     )
 
 
