@@ -1,6 +1,7 @@
 ---
 name: server-code-simplifier
 description: "Server code simplification for FastAPI + Python 3.11+ + Pydantic + uv stack. Use when user asks to 'simplify backend code', 'clean up FastAPI routes', 'extract business logic to services', 'reduce route handler size', or 'prepare backend for review'. Enforces thin routes, proper extraction, and production-ready structure."
+user-invocable: false
 ---
 
 # Server Code Simplification
