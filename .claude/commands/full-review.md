@@ -6,7 +6,12 @@ disable-model-invocation: true
 
 # Full Code Review Pipeline
 
-Execute a two-phase review on all branch changes. Follow each step sequentially.
+Execute a two-phase review on all branch changes.
+
+**⚠️ CRITICAL: SEQUENTIAL EXECUTION REQUIRED ⚠️**
+- Phase 1 (code-simplifier) MUST complete fully before Phase 2 starts
+- Phase 2 (pr-review) depends on Phase 1's fixes being applied first
+- **NEVER run these phases in parallel** - pr-review reviews the simplified code
 
 ---
 
@@ -25,7 +30,9 @@ Display the branch info and file list, then proceed.
 
 ---
 
-## Phase 1: Code Simplifier
+## Phase 1: Code Simplifier (RUN FIRST)
+
+**DO NOT proceed to Phase 2 until this phase completes and returns results.**
 
 Run the `code-simplifier` agent using **Task** tool with prompt:
 
@@ -49,7 +56,9 @@ Wait for completion. Save output as `SIMPLIFIER_REPORT`.
 
 ---
 
-## Phase 2: PR Review
+## Phase 2: PR Review (RUN AFTER PHASE 1 COMPLETES)
+
+**WAIT for Phase 1 to complete. Only start this phase after saving SIMPLIFIER_REPORT.**
 
 Run the `pr-review` agent using **Task** tool with prompt:
 

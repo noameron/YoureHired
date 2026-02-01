@@ -72,6 +72,8 @@ cd backend && uv run ruff check --select=C901 . || true  # Won't break siblings
 - Functions > 40 lines, files > 500 lines, nesting > 4 levels
 - `print()` statements (use `logging`), bare `except:` clauses
 - Poor naming (not descriptive, not snake_case)
+- Imports inside functions or classes (must be at file top)
+- Nested function definitions (helper functions should be standalone at module level)
 
 ### MEDIUM (Consider)
 - Missing Pydantic `Field()` validation
