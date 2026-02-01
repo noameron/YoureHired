@@ -36,7 +36,12 @@ defineProps<{
         v-if="index < agents.length - 1"
         class="connector"
         :class="{
-          active: agent.status === 'complete' || agents[index + 1]?.status === 'running'
+          greyed:
+            agent.status === 'pending' ||
+            agent.status === 'running' ||
+            agents[index + 1]?.status === 'error',
+          loading: agent.status === 'complete' && agents[index + 1]?.status === 'running',
+          complete: agent.status === 'complete' && agents[index + 1]?.status === 'complete'
         }"
       >
         <div class="connector-line" />
@@ -91,13 +96,36 @@ defineProps<{
   width: 2px;
   height: 24px;
   background: var(--border-secondary);
-  border-style: dashed;
   transition: background var(--transition-base);
 }
 
-.connector.active .connector-line {
+/* Greyed state - first agent running */
+.connector.greyed .connector-line {
+  background: var(--border-secondary);
+}
+
+.connector.greyed .connector-arrow {
+  color: var(--text-muted);
+}
+
+/* Loading state - flickering transition */
+.connector.loading .connector-line {
   background: var(--accent-primary);
-  animation: lineGlow 0.5s ease-out;
+  animation: flicker 0.8s ease-in-out infinite;
+}
+
+.connector.loading .connector-arrow {
+  color: var(--accent-primary);
+  animation: flicker 0.8s ease-in-out infinite;
+}
+
+/* Complete state - solid active */
+.connector.complete .connector-line {
+  background: var(--accent-primary);
+}
+
+.connector.complete .connector-arrow {
+  color: var(--accent-primary);
 }
 
 .connector-arrow {
@@ -107,37 +135,18 @@ defineProps<{
   transition: color var(--transition-base);
 }
 
-.connector.active .connector-arrow {
-  color: var(--accent-primary);
-  animation: arrowPulse 0.5s ease-out;
-}
-
 .connector-arrow svg {
   width: 100%;
   height: 100%;
 }
 
-@keyframes lineGlow {
-  0% {
-    box-shadow: 0 0 0 var(--accent-glow);
+@keyframes flicker {
+  0%,
+  100% {
+    opacity: 0.4;
   }
   50% {
-    box-shadow: 0 0 8px var(--accent-glow);
-  }
-  100% {
-    box-shadow: 0 0 0 transparent;
-  }
-}
-
-@keyframes arrowPulse {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.2);
-  }
-  100% {
-    transform: scale(1);
+    opacity: 1;
   }
 }
 </style>
