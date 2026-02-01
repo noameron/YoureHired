@@ -1,0 +1,100 @@
+.practice-view {
+  min-height: 100vh;
+  background: var(--bg-primary);
+  display: flex;
+  justify-content: center;
+  padding: var(--space-8);
+}
+
+.content {
+  max-width: 700px;
+  width: 100%;
+}
+
+.loading-state {
+  text-align: center;
+  padding: var(--space-8) var(--space-4);
+}
+
+.loading-title {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-2);
+}
+
+.context {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-6);
+}
+
+.transition-arrow {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-8) 0;
+  animation: fadeIn 0.5s ease;
+}
+
+.arrow-button {
+  background: transparent;
+  border: 2px solid var(--accent-primary);
+  border-radius: var(--radius-full);
+  width: 48px;
+  height: 48px;
+  color: var(--accent-primary);
+  cursor: pointer;
+  animation: bounce 2s infinite;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.arrow-button:hover {
+  background: var(--accent-primary);
+  color: white;
+  animation: none;
+}
+
+.arrow-button svg {
+  width: 24px;
+  height: 24px;
+}
+
+.error-state {
+  text-align: center;
+  padding: var(--space-16) var(--space-8);
+}
+
+.error-message {
+  color: var(--color-error-text);
+  margin-bottom: var(--space-6);
+}
+
+.retry-button {
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+  padding: var(--space-3) var(--space-8);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  transition:
+    background var(--transition-fast),
+    box-shadow var(--transition-fast);
+  box-shadow: 0 2px 8px var(--accent-glow);
+}
+
+.retry-button:hover {
+  background: var(--accent-hover);
+  box-shadow: var(--shadow-glow);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .practice-view {
+    padding: var(--space-4);
+  }
+}
