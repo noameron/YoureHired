@@ -41,7 +41,10 @@ defineProps<{
             agent.status === 'running' ||
             agents[index + 1]?.status === 'error',
           loading: agent.status === 'complete' && agents[index + 1]?.status === 'running',
-          complete: agent.status === 'complete' && agents[index + 1]?.status === 'complete'
+          complete:
+            agent.status === 'complete' &&
+            agents[index + 1]?.status !== 'running' &&
+            agents[index + 1]?.status !== 'error'
         }"
       >
         <div class="connector-line" />
