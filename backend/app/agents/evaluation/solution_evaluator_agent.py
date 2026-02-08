@@ -6,6 +6,7 @@ from app.agents.guardrails import (
     SECURITY_RULES,
     leakage_guardrail,
 )
+from app.model_config import DEFAULT_MODEL
 from app.schemas.evaluation import SolutionFeedback
 
 SOLUTION_EVALUATOR_INSTRUCTIONS = f"""You are a senior technical interviewer \
@@ -64,7 +65,7 @@ IMPORTANT:
 solution_evaluator_agent = Agent(
     name="SolutionEvaluatorAgent",
     instructions=SOLUTION_EVALUATOR_INSTRUCTIONS,
-    model="gpt-4o-mini",
+    model=DEFAULT_MODEL,
     output_type=SolutionFeedback,
     output_guardrails=[leakage_guardrail],
 )

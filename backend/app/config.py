@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
 
+    # Google Gemini Configuration (free tier fallback)
+    google_api_key: str = ""
+    gemini_model: str = "litellm/gemini/gemini-2.5-flash"
+
     # Agent Timeouts (seconds)
     company_research_agent_timeout: float = 60.0
     drill_generation_agent_timeout: float = 90.0
