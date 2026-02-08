@@ -5,6 +5,7 @@ from app.agents.guardrails import (
     injection_guardrail,
     leakage_guardrail,
 )
+from app.model_config import DEFAULT_MODEL
 from app.schemas.company_info import CompanySummary
 
 SUMMARIZER_INSTRUCTIONS = f"""You are a company research summarizer.
@@ -18,7 +19,7 @@ Be concise but informative. Include tech stack if found.
 summarizer_agent = Agent(
     name="CompanySummarizerAgent",
     instructions=SUMMARIZER_INSTRUCTIONS,
-    model="gpt-4o-mini",
+    model=DEFAULT_MODEL,
     output_type=CompanySummary,
     input_guardrails=[injection_guardrail],
     output_guardrails=[leakage_guardrail],

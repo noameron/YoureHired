@@ -5,6 +5,7 @@ from app.agents.guardrails import (
     injection_guardrail,
     leakage_guardrail,
 )
+from app.model_config import DEFAULT_MODEL
 from app.schemas.company_info import SearchPlan
 
 HOW_MANY_SEARCHES = 2
@@ -21,7 +22,7 @@ Focus on:
 planner_agent = Agent(
     name="CompanyPlannerAgent",
     instructions=PLANNER_INSTRUCTIONS,
-    model="gpt-4o-mini",
+    model=DEFAULT_MODEL,
     output_type=SearchPlan,
     input_guardrails=[injection_guardrail],
     output_guardrails=[leakage_guardrail],

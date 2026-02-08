@@ -12,6 +12,7 @@ from typing import Any
 from agents import Agent, GuardrailFunctionOutput, RunContextWrapper, Runner, output_guardrail
 
 from app.agents.guardrails.patterns import check_leakage_patterns
+from app.model_config import DEFAULT_MODEL
 from app.schemas.guardrails import LeakageDetectorOutput
 
 LEAKAGE_DETECTOR_INSTRUCTIONS = """You are a security analyst detecting sensitive data leakage.
@@ -34,7 +35,7 @@ Flag anything that looks like it could be a secret or credential, even if partia
 leakage_detector_agent = Agent(
     name="LeakageDetectorAgent",
     instructions=LEAKAGE_DETECTOR_INSTRUCTIONS,
-    model="gpt-4o-mini",
+    model=DEFAULT_MODEL,
     output_type=LeakageDetectorOutput,
 )
 
