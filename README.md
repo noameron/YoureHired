@@ -1,12 +1,10 @@
 # YoureHired
 
-**🚧 Work in Progress** - Practice real interview-style tasks tailored to your target company and role. Pick a company and role, then the app researches the company, summarizes what matters, and sets you up to practice with relevant context.
-
-Currently, I am developing the AI agents that create tailored coding tasks and challenges based on your target role and company research. Later, I will build an evaluator agent to assess your solutions and provide detailed feedback on your performance.
+Practice real interview-style tasks tailored to your target company and role. Pick a company and role, then the app researches the company, summarizes what matters, and generates coding, debugging, and design drills specific to that position — with LLM-powered feedback on your solutions.
 
 ## What It Does
 
-- **Role selection:** Choose a target company and developer role (e.g., Frontend Developer).
+- **Role selection:** Choose a target company and developer role (e.g., Frontend Developer). Optionally paste the job description to give the agents more context.
 - **Company research:** The backend orchestrates agents to plan searches, gather findings, and summarize results.
 - **Live feedback:** The Practice view streams status updates and shows a structured company summary to guide your practice.
 
@@ -34,20 +32,32 @@ Currently, I am developing the AI agents that create tailored coding tasks and c
    Or create one manually:
 
    Example `.env` (do not commit real keys):
-   
+
    ```env
-   # API Keys (required for agents/tools)
-   OPENAI_API_KEY=your_openai_api_key
-   # Optional: other providers if you enable them
-   ANTHROPIC_API_KEY=
+   # --- Model Provider (pick one) ---
+   # Option 1: OpenAI (default if set)
+   OPENAI_API_KEY=your_openai_api_key_here
+   OPENAI_MODEL=gpt-4o-mini
+
+   # Option 2: Google Gemini (free tier fallback — used when OPENAI_API_KEY is empty)
    GOOGLE_API_KEY=
-   GROQ_API_KEY=
+   GEMINI_MODEL=litellm/gemini/gemini-2.5-flash
 
    # Backend Settings
    DEBUG=false
    CORS_ORIGINS=["http://localhost:3000"]
-   OPENAI_MODEL=gpt-4o-mini
    ```
+
+   ### Model Providers
+
+   The app picks a model based on which API key is available:
+
+   | Provider | When used | Default model | Web search |
+   |----------|-----------|---------------|------------|
+   | **OpenAI** | `OPENAI_API_KEY` is set | `gpt-4o-mini` | Enabled — company research uses live web results |
+   | **Google Gemini** | `OPENAI_API_KEY` is **not** set | `gemini-2.5-flash` | Disabled — research relies on the model's training data only |
+
+   Override the default model with `OPENAI_MODEL` or `GEMINI_MODEL` in your `.env`.
 
 2. Install dependencies:
    - Backend: `cd backend && uv sync`
@@ -77,7 +87,7 @@ The Vite dev server proxies calls to `/api` → `http://localhost:8000` (see `fr
 2. On the Role Selection page:
    - Enter a company name (e.g., "Acme Corp").
    - Pick a role from the dropdown (roles are fetched from the backend).
-   - Optionally add a role description to tailor the context.
+   - Optionally paste a **role description** (e.g., from the job listing) — the agents use it as extra context when generating drills and research, so tasks match the actual position more closely.
    - Submit to create a session.
 3. You’ll be redirected to the Practice view:
    - Watch live status updates as the research runs (planning → searching → summarizing).
@@ -109,6 +119,13 @@ backend/            # FastAPI + agents
 │   ├── services/   # Session store and company research pipeline
 │   └── agents/     # Planner/Search/Summarizer agents + guardrails
 └── tests/          # Pytest suite
+
+docs/               # Documentation and generated artifacts
+├── drills/
+│   └── feedbacks/  # Timestamped LLM-generated drill feedback
+│       └── DD-MM-YYYY_HH-MM/
+│           └── {company}_{role}.md
+└── *.md            # Agent specifications and internal docs
 ```
 
 Key patterns:
@@ -144,4 +161,4 @@ Key patterns:
 ## Notes
 
 - Do not commit real API keys. Use a local `.env` for development.
-- Default model is `gpt-4o-mini` (configurable via `.env`).
+- Model selection is automatic: set `OPENAI_API_KEY` for OpenAI, or leave it empty to fall back to Google Gemini (see [Model Providers](#model-providers)).
