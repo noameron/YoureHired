@@ -7,6 +7,7 @@ from app.agents.guardrails import (
     injection_guardrail,
     leakage_guardrail,
 )
+from app.model_config import DEFAULT_MODEL
 from app.schemas.drill import DrillEvaluation
 
 EVALUATOR_INSTRUCTIONS = f"""You are a technical hiring manager \
@@ -47,7 +48,7 @@ OUTPUT REQUIREMENTS:
 evaluator_agent = Agent(
     name="DrillEvaluatorAgent",
     instructions=EVALUATOR_INSTRUCTIONS,
-    model="gpt-4o-mini",
+    model=DEFAULT_MODEL,
     output_type=DrillEvaluation,
     input_guardrails=[injection_guardrail],
     output_guardrails=[leakage_guardrail],
