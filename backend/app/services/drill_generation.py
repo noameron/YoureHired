@@ -198,6 +198,8 @@ async def generate_drill(
         evaluator_agent, evaluator_input, session_id,
         timeout=settings.drill_generation_agent_timeout,
     )
+    if eval_output is None:
+        raise ValueError("Drill evaluation returned no result — the agent may have been cancelled")
 
     evaluation: DrillEvaluation = eval_output
     return evaluation.selected_drill
@@ -294,6 +296,8 @@ async def _evaluate_candidates(
         evaluator_agent, evaluator_input, session_id,
         timeout=settings.drill_generation_agent_timeout,
     )
+    if eval_output is None:
+        raise ValueError("Drill evaluation returned no result — the agent may have been cancelled")
 
     evaluation: DrillEvaluation = eval_output
 

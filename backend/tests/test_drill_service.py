@@ -12,20 +12,7 @@ from app.services.drill_generation import (
     _build_generator_input,
     generate_drill_stream,
 )
-
-
-def mock_streamed_result(final_output):
-    """Create a mock that behaves like RunResultStreaming."""
-    mock = MagicMock()
-    mock.final_output = final_output
-    mock.is_complete = True
-
-    async def empty_stream():
-        return
-        yield  # makes it an async generator
-
-    mock.stream_events = empty_stream
-    return mock
+from tests.conftest import mock_streamed_result
 
 
 class TestBuildGeneratorInput:

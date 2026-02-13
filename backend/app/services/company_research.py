@@ -26,7 +26,9 @@ async def _plan_searches(company_name: str, role: str, session_id: str) -> Searc
         planner_agent, plan_input, session_id,
         timeout=settings.company_research_agent_timeout,
     )
-    return output
+    if output is None:
+        raise RuntimeError("Search planning returned no result — the agent may have been cancelled")
+    return output  # type: ignore[no-any-return]
 
 
 async def _run_single_search(
@@ -60,7 +62,12 @@ async def _summarize_results(
         summarizer_agent, summary_input, session_id,
         timeout=settings.company_research_agent_timeout,
     )
-    return output
+    if output is None:
+        raise RuntimeError(
+            "Research summarization returned no result"
+            " — the agent may have been cancelled"
+        )
+    return output  # type: ignore[no-any-return]
 
 
 async def _execute_searches(

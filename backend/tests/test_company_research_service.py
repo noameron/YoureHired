@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from app.services.company_research import research_company_stream
+from tests.conftest import mock_streamed_result
 
 
 async def collect_events(stream):
@@ -14,20 +15,6 @@ async def collect_events(stream):
     async for event in stream:
         events.append(event)
     return events
-
-
-def mock_streamed_result(final_output):
-    """Create a mock that behaves like RunResultStreaming."""
-    mock = MagicMock()
-    mock.final_output = final_output
-    mock.is_complete = True
-
-    async def empty_stream():
-        return
-        yield  # makes it an async generator
-
-    mock.stream_events = empty_stream
-    return mock
 
 
 class TestCompanyResearchTimeout:
