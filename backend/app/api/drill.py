@@ -55,7 +55,7 @@ async def _stream_research_events(
 ) -> AsyncGenerator[str, None]:
     """Stream company research events with status updates."""
     yield f"data: {json.dumps({'type': 'status', 'message': 'Researching company...'})}\n\n"
-    async for event in research_company_stream(company_name, role):
+    async for event in research_company_stream(company_name, role, session_id):
         if event["type"] == "status":
             yield f"data: {json.dumps(event)}\n\n"
         elif event["type"] == "complete":
@@ -110,6 +110,7 @@ async def generate_drill_endpoint(session_id: str) -> DrillGenerationResponse:
     drill: Drill = await generate_drill(
         company_name=session.company_name,
         role=session.role,
+        session_id=session_id,
         role_description=session.role_description,
         company_summary=company_summary,
         previous_feedback_summary=session.last_feedback_summary,
@@ -145,6 +146,7 @@ async def _generate_drill_stream_events(
     async for event in generate_drill_stream(
         company_name=session.company_name,
         role=session.role,
+        session_id=session_id,
         role_description=session.role_description,
         company_summary=company_summary,
         previous_feedback_summary=session.last_feedback_summary,

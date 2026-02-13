@@ -37,6 +37,7 @@ async def get_company_info(session_id: str) -> CompanyInfoResponse:
         summary = await consume_research_stream(
             company_name=session.company_name,
             role=session.role,
+            session_id=session_id,
         )
     except RuntimeError as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -63,7 +64,7 @@ async def _generate_research_events(
     session_id: str, company_name: str, role: str
 ) -> AsyncGenerator[str, None]:
     """Generate SSE events for company research stream."""
-    async for event in research_company_stream(company_name, role):
+    async for event in research_company_stream(company_name, role, session_id):
         # Store company summary when research completes
         if event.get("type") == "complete" and "data" in event:
             try:

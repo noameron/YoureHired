@@ -68,7 +68,7 @@ class TestStreamCompanyResearchHeaders:
         """Stream response has correct SSE headers."""
 
         # GIVEN a valid session with mocked empty stream
-        async def mock_stream(company_name: str, role: str):
+        async def mock_stream(company_name: str, role: str, session_id: str):
             yield {"type": "status", "message": "Test"}
 
         with patch(
@@ -98,9 +98,10 @@ class TestStreamCompanyResearchSessionData:
         # GIVEN a valid session
         captured_args = {}
 
-        async def mock_stream(company_name: str, role: str):
+        async def mock_stream(company_name: str, role: str, session_id: str):
             captured_args["company_name"] = company_name
             captured_args["role"] = role
+            captured_args["session_id"] = session_id
             yield {"type": "complete", "data": {}}
 
         with patch(
