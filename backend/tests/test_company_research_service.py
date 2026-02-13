@@ -16,6 +16,20 @@ async def collect_events(stream):
     return events
 
 
+def mock_streamed_result(final_output):
+    """Create a mock that behaves like RunResultStreaming."""
+    mock = MagicMock()
+    mock.final_output = final_output
+    mock.is_complete = True
+
+    async def empty_stream():
+        return
+        yield  # makes it an async generator
+
+    mock.stream_events = empty_stream
+    return mock
+
+
 class TestCompanyResearchTimeout:
     """Tests for timeout behavior in company research."""
 
@@ -25,11 +39,25 @@ class TestCompanyResearchTimeout:
         with patch("app.services.company_research.settings") as mock_settings:
             mock_settings.company_research_agent_timeout = 0.01  # 10ms
 
-            async def slow_runner(agent, input_str):
-                await asyncio.sleep(0.1)  # 100ms > 10ms timeout
+            def slow_streamed(agent, input_str):
+                mock = MagicMock()
+                mock.final_output = None
+                mock.is_complete = False
 
-            with patch("app.services.company_research.Runner.run", side_effect=slow_runner):
-                events = await collect_events(research_company_stream("TestCo", "Developer"))
+                async def slow_stream():
+                    await asyncio.sleep(0.1)  # 100ms > 10ms timeout
+                    yield  # makes it an async generator
+
+                mock.stream_events = slow_stream
+                return mock
+
+            with patch(
+                "app.services.task_registry.Runner.run_streamed",
+                side_effect=slow_streamed,
+            ):
+                events = await collect_events(
+                    research_company_stream("TestCo", "Developer", "test-session")
+                )
 
         assert events[-1]["type"] == "error"
         assert "timed out" in events[-1]["message"].lower()
@@ -42,35 +70,51 @@ class TestCompanyResearchTimeout:
 
             call_count = [0]
 
-            async def mock_runner(agent, input_str):
+            def mock_run_streamed(agent, input_str):
                 call_count[0] += 1
+                current = call_count[0]
+
                 # Planner returns quickly with 2 searches
-                if call_count[0] == 1:
-                    result = MagicMock()
-                    result.final_output = MagicMock()
-                    result.final_output.searches = [
+                if current == 1:
+                    plan_mock = MagicMock()
+                    plan_mock.searches = [
                         MagicMock(query="q1", reason="r1"),
                         MagicMock(query="q2", reason="r2"),
                     ]
-                    return result
-                # First search times out
-                if call_count[0] == 2:
-                    await asyncio.sleep(0.1)  # Exceeds timeout
-                # Second search succeeds
-                if call_count[0] == 3:
-                    result = MagicMock()
-                    result.final_output = "search result"
-                    return result
-                # Summarizer succeeds
-                if call_count[0] == 4:
-                    result = MagicMock()
-                    result.final_output = MagicMock()
-                    result.final_output.model_dump = lambda: {"summary": "test"}
-                    return result
-                return MagicMock()
+                    return mock_streamed_result(plan_mock)
 
-            with patch("app.services.company_research.Runner.run", side_effect=mock_runner):
-                events = await collect_events(research_company_stream("TestCo", "Developer"))
+                # First search times out
+                if current == 2:
+                    mock = MagicMock()
+                    mock.final_output = None
+                    mock.is_complete = False
+
+                    async def slow_stream():
+                        await asyncio.sleep(0.1)
+                        yield
+
+                    mock.stream_events = slow_stream
+                    return mock
+
+                # Second search succeeds
+                if current == 3:
+                    return mock_streamed_result("search result")
+
+                # Summarizer succeeds
+                if current == 4:
+                    summary_mock = MagicMock()
+                    summary_mock.model_dump = lambda: {"summary": "test"}
+                    return mock_streamed_result(summary_mock)
+
+                return mock_streamed_result(MagicMock())
+
+            with patch(
+                "app.services.task_registry.Runner.run_streamed",
+                side_effect=mock_run_streamed,
+            ):
+                events = await collect_events(
+                    research_company_stream("TestCo", "Developer", "test-session")
+                )
 
         # Should have continued despite one timeout
         status_messages = [e["message"] for e in events if e["type"] == "status"]

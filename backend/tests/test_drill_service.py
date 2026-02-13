@@ -14,6 +14,20 @@ from app.services.drill_generation import (
 )
 
 
+def mock_streamed_result(final_output):
+    """Create a mock that behaves like RunResultStreaming."""
+    mock = MagicMock()
+    mock.final_output = final_output
+    mock.is_complete = True
+
+    async def empty_stream():
+        return
+        yield  # makes it an async generator
+
+    mock.stream_events = empty_stream
+    return mock
+
+
 class TestBuildGeneratorInput:
     """Tests for _build_generator_input function."""
 
@@ -110,12 +124,26 @@ class TestDrillGenerationTimeout:
         with patch("app.services.drill_generation.settings") as mock_settings:
             mock_settings.drill_generation_agent_timeout = 0.01  # 10ms
 
-            async def slow_runner(agent, input_str):
-                await asyncio.sleep(0.1)  # All exceed timeout
+            def slow_streamed(agent, input_str):
+                mock = MagicMock()
+                mock.final_output = None
+                mock.is_complete = False
 
-            with patch("app.services.drill_generation.Runner.run", side_effect=slow_runner):
+                async def slow_stream():
+                    await asyncio.sleep(0.1)  # All exceed timeout
+                    yield
+
+                mock.stream_events = slow_stream
+                return mock
+
+            with patch(
+                "app.services.task_registry.Runner.run_streamed",
+                side_effect=slow_streamed,
+            ):
                 events = []
-                async for event in generate_drill_stream("TestCo", "Developer"):
+                async for event in generate_drill_stream(
+                    "TestCo", "Developer", "test-session"
+                ):
                     events.append(event)
 
         assert events[-1]["type"] == "error"
@@ -132,23 +160,39 @@ class TestDrillGenerationTimeout:
 
             call_count = [0]
 
-            async def mock_runner(agent, input_str):
+            def mock_run_streamed(agent, input_str):
                 call_count[0] += 1
-                # First generator times out
-                if call_count[0] == 1:
-                    await asyncio.sleep(0.1)  # Exceeds timeout
-                # Other generators succeed quickly
-                result = MagicMock()
-                result.final_output = MagicMock()
-                result.final_output.generator_type = DrillType.CODING
-                result.final_output.drill = MagicMock()
-                result.final_output.drill.title = "Test Drill"
-                result.final_output.drill.model_dump = lambda: {"title": "Test"}
-                return result
+                current = call_count[0]
 
-            with patch("app.services.drill_generation.Runner.run", side_effect=mock_runner):
+                # First generator times out
+                if current == 1:
+                    mock = MagicMock()
+                    mock.final_output = None
+                    mock.is_complete = False
+
+                    async def slow_stream():
+                        await asyncio.sleep(0.1)  # Exceeds timeout
+                        yield
+
+                    mock.stream_events = slow_stream
+                    return mock
+
+                # Other generators succeed quickly
+                result_mock = MagicMock()
+                result_mock.generator_type = DrillType.CODING
+                result_mock.drill = MagicMock()
+                result_mock.drill.title = "Test Drill"
+                result_mock.drill.model_dump = lambda: {"title": "Test"}
+                return mock_streamed_result(result_mock)
+
+            with patch(
+                "app.services.task_registry.Runner.run_streamed",
+                side_effect=mock_run_streamed,
+            ):
                 events = []
-                async for event in generate_drill_stream("TestCo", "Developer"):
+                async for event in generate_drill_stream(
+                    "TestCo", "Developer", "test-session"
+                ):
                     events.append(event)
 
         # Should have continued despite one timeout

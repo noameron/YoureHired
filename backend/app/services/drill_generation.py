@@ -8,7 +8,7 @@ to select the best drill.
 import asyncio
 from collections.abc import AsyncGenerator
 
-from agents import Agent, Runner
+from agents import Agent
 from agents.exceptions import (
     InputGuardrailTripwireTriggered,
     OutputGuardrailTripwireTriggered,
@@ -33,6 +33,7 @@ from app.schemas.drill import (
     DrillEvaluation,
     DrillType,
 )
+from app.services.task_registry import run_agent_streamed
 
 # All available generators in priority order
 ALL_GENERATORS = [
@@ -121,6 +122,7 @@ def _build_evaluator_input(
 async def generate_drill(
     company_name: str,
     role: str,
+    session_id: str,
     role_description: str | None = None,
     company_summary: CompanySummary | None = None,
     previous_feedback_summary: str | None = None,
@@ -131,6 +133,7 @@ async def generate_drill(
     Args:
         company_name: Target company name
         role: Job role
+        session_id: Session ID for cancellation tracking
         role_description: Optional detailed role description
         company_summary: Optional company research summary for context
         previous_feedback_summary: Optional feedback from previous drill to target weak areas
@@ -156,11 +159,13 @@ async def generate_drill(
     ) -> DrillCandidate | None:
         """Run a single generator with error handling."""
         try:
-            result = await asyncio.wait_for(
-                Runner.run(agent, generator_input),
+            output = await run_agent_streamed(
+                agent, generator_input, session_id,
                 timeout=settings.drill_generation_agent_timeout,
             )
-            candidate: DrillCandidate = result.final_output
+            if output is None:
+                return None
+            candidate: DrillCandidate = output
             # Ensure generator_type matches the agent
             candidate.generator_type = drill_type
             return candidate
@@ -189,12 +194,12 @@ async def generate_drill(
 
     # Evaluate and select the best
     evaluator_input = _build_evaluator_input(company_name, role, candidates)
-    eval_result = await asyncio.wait_for(
-        Runner.run(evaluator_agent, evaluator_input),
+    eval_output = await run_agent_streamed(
+        evaluator_agent, evaluator_input, session_id,
         timeout=settings.drill_generation_agent_timeout,
     )
 
-    evaluation: DrillEvaluation = eval_result.final_output
+    evaluation: DrillEvaluation = eval_output
     return evaluation.selected_drill
 
 
@@ -203,14 +208,17 @@ async def _run_single_generator(
     drill_type: DrillType,
     desc: str,
     generator_input: str,
+    session_id: str,
 ) -> tuple[str, DrillCandidate | str | None, str]:
     """Run a single generator agent and return status tuple."""
     try:
-        result = await asyncio.wait_for(
-            Runner.run(agent, generator_input),
+        output = await run_agent_streamed(
+            agent, generator_input, session_id,
             timeout=settings.drill_generation_agent_timeout,
         )
-        candidate: DrillCandidate = result.final_output
+        if output is None:
+            return ("cancelled", None, desc)
+        candidate: DrillCandidate = output
         candidate.generator_type = drill_type
         return ("success", candidate, desc)
     except TimeoutError:
@@ -226,6 +234,7 @@ async def _run_single_generator(
 async def _run_generators_parallel(
     generators: list[tuple[Agent[DrillCandidate], DrillType, str]],
     generator_input: str,
+    session_id: str,
 ) -> AsyncGenerator[tuple[list[DrillCandidate], dict[str, object]], None]:
     """
     Run generators in parallel and yield (candidates, event) as they complete.
@@ -234,7 +243,9 @@ async def _run_generators_parallel(
     candidates: list[DrillCandidate] = []
 
     tasks = [
-        asyncio.create_task(_run_single_generator(agent, dt, desc, generator_input))
+        asyncio.create_task(
+            _run_single_generator(agent, dt, desc, generator_input, session_id)
+        )
         for agent, dt, desc in generators
     ]
 
@@ -269,6 +280,7 @@ async def _evaluate_candidates(
     company_name: str,
     role: str,
     candidates: list[DrillCandidate],
+    session_id: str,
 ) -> AsyncGenerator[dict[str, object], None]:
     """Evaluate multiple candidates and yield the result."""
     yield {
@@ -278,12 +290,12 @@ async def _evaluate_candidates(
 
     evaluator_input = _build_evaluator_input(company_name, role, candidates)
 
-    eval_result = await asyncio.wait_for(
-        Runner.run(evaluator_agent, evaluator_input),
+    eval_output = await run_agent_streamed(
+        evaluator_agent, evaluator_input, session_id,
         timeout=settings.drill_generation_agent_timeout,
     )
 
-    evaluation: DrillEvaluation = eval_result.final_output
+    evaluation: DrillEvaluation = eval_output
 
     reasoning_preview = evaluation.selection_reasoning[:100]
     yield {
@@ -297,6 +309,7 @@ async def _evaluate_candidates(
 async def generate_drill_stream(
     company_name: str,
     role: str,
+    session_id: str,
     role_description: str | None = None,
     company_summary: CompanySummary | None = None,
     previous_feedback_summary: str | None = None,
@@ -322,7 +335,7 @@ async def generate_drill_stream(
 
         # Phase 1: Generate candidates in parallel
         candidates: list[DrillCandidate] = []
-        gen_stream = _run_generators_parallel(generators, generator_input)
+        gen_stream = _run_generators_parallel(generators, generator_input, session_id)
         async for updated_candidates, event in gen_stream:
             candidates = updated_candidates
             yield event
@@ -338,7 +351,9 @@ async def generate_drill_stream(
             return
 
         # Phase 3: Evaluate multiple candidates
-        async for event in _evaluate_candidates(company_name, role, candidates):
+        async for event in _evaluate_candidates(
+            company_name, role, candidates, session_id
+        ):
             yield event
 
     except InputGuardrailTripwireTriggered:
