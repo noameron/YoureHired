@@ -137,7 +137,7 @@ watch(toRef(props, 'feedback'), () => {
       >
         <button
           type="button"
-          class="practice-weak-areas-btn"
+          class="btn btn-primary practice-weak-areas-btn"
           @click="emit('practice-weak-areas')"
         >
           Practice Weak Areas

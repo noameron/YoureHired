@@ -1,9 +1,10 @@
 .drill-card {
   background: var(--bg-secondary);
-  border-radius: var(--radius-2xl);
+  border-radius: var(--radius-card);
   padding: var(--space-8);
   box-shadow: var(--shadow-card);
   border: 1px solid var(--border-subtle);
+  transition: box-shadow 300ms var(--ease-out-cubic);
 }
 
 .drill-card h1 {
@@ -20,9 +21,10 @@
 
 .meta span {
   padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-badge);
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
+  letter-spacing: var(--tracking-wide);
 }
 
 .type {
@@ -35,17 +37,29 @@
 }
 
 .difficulty.easy {
-  background: var(--color-success-bg);
+  background: linear-gradient(
+    135deg,
+    var(--color-success-bg) 0%,
+    rgba(16, 185, 129, 0.05) 100%
+  );
   color: var(--color-success-text);
 }
 
 .difficulty.medium {
-  background: var(--color-warning-bg);
+  background: linear-gradient(
+    135deg,
+    var(--color-warning-bg) 0%,
+    rgba(245, 158, 11, 0.05) 100%
+  );
   color: var(--color-warning-text);
 }
 
 .difficulty.hard {
-  background: var(--color-error-bg);
+  background: linear-gradient(
+    135deg,
+    var(--color-error-bg) 0%,
+    rgba(239, 68, 68, 0.05) 100%
+  );
   color: var(--color-error-text);
 }
 
@@ -106,7 +120,7 @@
   background: var(--code-bg);
   color: var(--code-text);
   padding: var(--space-4);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-input);
   border: 1px solid var(--code-border);
   overflow-x: auto;
   font-family: var(--font-mono);
@@ -134,8 +148,13 @@
 
 .hint-item {
   border: 1px solid var(--border-primary);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-input);
   overflow: hidden;
+  transition: border-color var(--transition-fast);
+}
+
+.hint-item:hover {
+  border-color: var(--border-secondary);
 }
 
 .hint-toggle {
@@ -151,7 +170,7 @@
   font-weight: var(--font-semibold);
   color: var(--accent-primary);
   text-align: left;
-  transition: background var(--transition-fast);
+  transition: background 200ms var(--ease-spring);
 }
 
 .hint-toggle:hover {
@@ -174,6 +193,7 @@
   line-height: var(--leading-relaxed);
   background: var(--bg-secondary);
   border-top: 1px solid var(--border-primary);
+  animation: fadeIn 200ms var(--ease-out-cubic);
 }
 
 .solution-section {
@@ -189,15 +209,15 @@
   background: var(--code-bg);
   color: var(--code-text);
   border: 1px solid var(--code-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-input);
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   line-height: var(--leading-relaxed);
   resize: vertical;
   box-sizing: border-box;
   transition:
-    border-color var(--transition-fast),
-    box-shadow var(--transition-fast);
+    border-color 200ms var(--ease-spring),
+    box-shadow 200ms var(--ease-spring);
 }
 
 .solution-input::placeholder {
@@ -207,7 +227,8 @@
 .solution-input:focus {
   outline: none;
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px var(--accent-light);
+  box-shadow: 0 0 0 3px var(--accent-light),
+    inset 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .solution-input:disabled {
@@ -221,31 +242,21 @@
   font-size: var(--text-sm);
 }
 
+/* Inherits base styles from global .btn .btn-primary */
 .submit-solution-btn {
   margin-top: var(--space-4);
-  background: var(--accent-primary);
-  color: white;
-  border: none;
   padding: var(--space-3) var(--space-8);
-  border-radius: var(--radius-lg);
-  cursor: pointer;
   font-size: var(--text-base);
-  font-weight: var(--font-semibold);
-  transition:
-    background var(--transition-fast),
-    box-shadow var(--transition-fast);
-  box-shadow: 0 2px 8px var(--accent-glow);
-}
-
-.submit-solution-btn:hover:not(:disabled) {
-  background: var(--accent-hover);
-  box-shadow: var(--shadow-glow);
 }
 
 .submit-solution-btn:disabled {
   background: var(--text-muted);
-  cursor: not-allowed;
   box-shadow: none;
+}
+
+.submit-solution-btn:disabled::before,
+.submit-solution-btn:disabled::after {
+  display: none;
 }
 
 /* Mobile responsiveness */
