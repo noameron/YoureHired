@@ -17,6 +17,16 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 <!-- OPENSPEC:END -->
 
+## TDD: Red → Green → Refactor (Always)
+
+Every feature/fix follows this cycle — no exceptions:
+
+1. **RED** — Delegate to `tdd-dev` agent. Include: feature description, file paths, expected behavior, edge cases. Agent writes failing tests.
+2. **GREEN** — Main orchestrator writes minimal production code to pass tests.
+3. **REFACTOR** — Delegate to `tdd-dev` again with implementation context. Agent refactors tests and verifies 80%+ coverage.
+
+**Rule**: `tdd-dev` owns test files, main orchestrator owns production code. Never write production code without a failing test first.
+
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
