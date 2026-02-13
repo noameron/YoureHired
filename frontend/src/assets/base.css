@@ -68,6 +68,37 @@ body::before {
   opacity: 0.4;
 }
 
+body::after {
+  content: var(--dot-grid-display, '');
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: -1;
+  background-image: radial-gradient(
+    var(--border-primary) 1px,
+    transparent 1px
+  );
+  background-size: 32px 32px;
+  opacity: 0.3;
+  mask-image: radial-gradient(
+    ellipse 60% 60% at 50% 50%,
+    black 0%,
+    transparent 70%
+  );
+  -webkit-mask-image: radial-gradient(
+    ellipse 60% 60% at 50% 50%,
+    black 0%,
+    transparent 70%
+  );
+}
+
+[data-theme='dark'] body::after {
+  opacity: 0.15;
+}
+
 /* ============================================
  * TYPOGRAPHY
  * ============================================ */
@@ -137,8 +168,9 @@ input:focus,
 select:focus,
 textarea:focus,
 button:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--accent-light);
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--accent-light);
 }
 
 /* Disabled state */
@@ -320,49 +352,116 @@ button:focus-visible {
 /* Card base */
 .card {
   background-color: var(--bg-secondary);
-  border-radius: var(--radius-2xl);
+  border-radius: var(--radius-card);
   padding: var(--space-6);
   box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-subtle);
   transition:
-    box-shadow var(--transition-base),
-    transform var(--transition-base);
+    box-shadow 300ms var(--ease-out-cubic),
+    transform 300ms var(--ease-out-cubic),
+    border-color 300ms var(--ease-out-cubic);
 }
 
 .card:hover {
   box-shadow: var(--shadow-lg);
+  transform: translateY(-4px);
+}
+
+[data-theme='dark'] .card {
+  background: linear-gradient(
+    135deg,
+    var(--bg-secondary) 0%,
+    var(--bg-tertiary) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 /* Button base */
 .btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-6);
   font-weight: var(--font-semibold);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-button);
   border: none;
   cursor: pointer;
+  overflow: hidden;
   transition:
-    background-color var(--transition-fast),
+    background var(--transition-fast),
     transform var(--transition-fast),
     box-shadow var(--transition-fast);
 }
 
-.btn:active:not(:disabled) {
-  transform: translateY(1px);
+.btn:hover:not(:disabled) {
+  transform: translateY(-2px);
 }
 
-/* Primary button */
+.btn:active:not(:disabled) {
+  transform: translateY(1px) scale(0.98);
+}
+
+/* Primary button (canonical pattern - component buttons inherit via .btn .btn-primary)
+ * ::before — inset highlight line at top edge for depth
+ * ::after  — shimmer sweep animation for visual polish
+ */
 .btn-primary {
-  background-color: var(--accent-primary);
+  background: var(--gradient-primary-btn);
   color: white;
-  box-shadow: 0 2px 8px var(--accent-glow);
+  box-shadow: var(--shadow-inset-highlight), 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+/* Inset highlight: thin white gradient line across top for a lit-edge effect */
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.5) 50%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+/* Shimmer sweep: translucent band that slides left-to-right on loop */
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.15) 50%,
+    transparent 100%
+  );
+  animation: shimmer 3s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: var(--accent-hover);
-  box-shadow: 0 4px 12px var(--accent-glow);
+  background: var(--gradient-primary-btn-hover);
+  box-shadow: var(--shadow-inset-highlight),
+    0 8px 24px rgba(16, 185, 129, 0.5);
+}
+
+.btn-primary:active:not(:disabled) {
+  background: var(--gradient-primary-btn-pressed);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2),
+    0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.btn-primary:active:not(:disabled)::after {
+  animation: none;
 }
 
 /* Secondary button */
@@ -370,11 +469,17 @@ button:focus-visible {
   background-color: var(--bg-tertiary);
   color: var(--text-primary);
   border: 1px solid var(--border-primary);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .btn-secondary:hover:not(:disabled) {
   background-color: var(--bg-hover);
   border-color: var(--border-secondary);
+  box-shadow: var(--shadow-sm);
 }
 
 /* Input base */
@@ -384,14 +489,15 @@ button:focus-visible {
   background-color: var(--bg-input);
   color: var(--text-primary);
   border: 1px solid var(--border-primary);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-input);
   transition:
-    border-color var(--transition-fast),
-    box-shadow var(--transition-fast);
+    border-color 200ms var(--ease-spring),
+    box-shadow 200ms var(--ease-spring);
 }
 
 .input::placeholder {
   color: var(--text-muted);
+  transition: color var(--transition-fast);
 }
 
 .input:hover:not(:disabled) {
@@ -400,7 +506,9 @@ button:focus-visible {
 
 .input:focus {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px var(--accent-light);
+  box-shadow: 0 0 0 3px var(--accent-light),
+    inset 0 1px 2px rgba(0, 0, 0, 0.06);
+  outline: none;
 }
 
 .input.error {
@@ -415,10 +523,12 @@ button:focus-visible {
 .badge {
   display: inline-flex;
   align-items: center;
+  gap: var(--space-1);
   padding: var(--space-1) var(--space-3);
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-badge);
+  letter-spacing: var(--tracking-wide);
 }
 
 .badge-success {
@@ -451,6 +561,13 @@ button:focus-visible {
   background-color: var(--bg-tertiary);
   color: var(--text-secondary);
   border-radius: var(--radius-full);
+  transition: background-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.tag:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 /* Shared animations */
@@ -498,4 +615,34 @@ button:focus-visible {
   width: 48px;
   height: 48px;
   border-width: 4px;
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  50%,
+  100% {
+    left: 200%;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }

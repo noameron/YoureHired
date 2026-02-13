@@ -131,7 +131,7 @@ function formatDrillType(type: string): string {
 
       <button
         type="button"
-        class="submit-solution-btn"
+        class="btn btn-primary submit-solution-btn"
         :disabled="!solution.trim() || isEvaluating"
         @click="emit('submit')"
       >

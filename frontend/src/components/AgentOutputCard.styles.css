@@ -1,0 +1,118 @@
+.agent-card {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-card);
+  padding: var(--space-6);
+  border: 1px solid var(--border-subtle);
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  transition:
+    border-color 300ms var(--ease-out-cubic),
+    box-shadow 300ms var(--ease-out-cubic),
+    opacity 300ms var(--ease-out-cubic);
+}
+
+.agent-card.pending {
+  opacity: 0.5;
+}
+
+.agent-card.running {
+  border-color: var(--accent-primary);
+  box-shadow: var(--shadow-glow-sm);
+}
+
+.agent-card.complete {
+  border-color: var(--color-success);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.15);
+}
+
+.agent-card.error {
+  border-color: var(--color-error);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.15);
+}
+
+.agent-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.agent-name {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.status-indicator {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon {
+  width: 24px;
+  height: 24px;
+}
+
+.icon-pending {
+  color: var(--text-muted);
+}
+
+.icon-complete {
+  color: var(--color-success);
+}
+
+.icon-error {
+  color: var(--color-error);
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-primary);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.agent-content {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  text-align: center;
+}
+
+.status-text {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.status-text.muted {
+  color: var(--text-muted);
+}
+
+.streaming-text {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.error-text {
+  color: var(--color-error-text);
+}
+
+.output-text {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+  overflow-y: auto;
+  max-height: 120px;
+  scrollbar-width: thin;
+  text-align: center;
+}

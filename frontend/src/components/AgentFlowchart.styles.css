@@ -1,0 +1,75 @@
+.flowchart-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.flowchart-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.flowchart-step :deep(.agent-card) {
+  width: 100%;
+}
+
+/* Connector between cards */
+.connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-2) 0;
+  transition: all 300ms var(--ease-out-cubic);
+}
+
+.connector-line {
+  width: 2px;
+  height: 24px;
+  background: var(--border-secondary);
+  border-radius: 1px;
+  transition: background 300ms var(--ease-out-cubic);
+}
+
+/* Greyed state - first agent running */
+.connector.greyed .connector-line {
+  background: var(--border-secondary);
+}
+
+.connector.greyed .connector-arrow {
+  color: var(--text-muted);
+}
+
+/* Loading state - smooth pulse instead of flicker */
+.connector.loading .connector-line {
+  background: var(--accent-primary);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.connector.loading .connector-arrow {
+  color: var(--accent-primary);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Complete state - solid active */
+.connector.complete .connector-line {
+  background: var(--accent-primary);
+}
+
+.connector.complete .connector-arrow {
+  color: var(--accent-primary);
+}
+
+.connector-arrow {
+  width: 20px;
+  height: 20px;
+  color: var(--text-muted);
+  transition: color 300ms var(--ease-out-cubic);
+}
+
+.connector-arrow svg {
+  width: 100%;
+  height: 100%;
+}

@@ -1,6 +1,6 @@
 .feedback-card {
   background: var(--bg-secondary);
-  border-radius: var(--radius-2xl);
+  border-radius: var(--radius-card);
   padding: var(--space-8);
   box-shadow: var(--shadow-card);
   border: 1px solid var(--border-subtle);
@@ -47,23 +47,36 @@
   align-items: baseline;
   gap: var(--space-1);
   padding: var(--space-3) var(--space-5);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-badge);
   flex-wrap: wrap;
   justify-content: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .score-badge.good {
-  background: var(--color-success-bg);
+  background: linear-gradient(
+    135deg,
+    var(--color-success-bg) 0%,
+    rgba(16, 185, 129, 0.05) 100%
+  );
   color: var(--color-success-text);
 }
 
 .score-badge.adequate {
-  background: var(--color-warning-bg);
+  background: linear-gradient(
+    135deg,
+    var(--color-warning-bg) 0%,
+    rgba(245, 158, 11, 0.05) 100%
+  );
   color: var(--color-warning-text);
 }
 
 .score-badge.needs-work {
-  background: var(--color-error-bg);
+  background: linear-gradient(
+    135deg,
+    var(--color-error-bg) 0%,
+    rgba(239, 68, 68, 0.05) 100%
+  );
   color: var(--color-error-text);
 }
 
@@ -115,8 +128,13 @@
 
 .feedback-item {
   border: 1px solid var(--border-primary);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-input);
   overflow: hidden;
+  transition: border-color var(--transition-fast);
+}
+
+.feedback-item:hover {
+  border-color: var(--border-secondary);
 }
 
 .item-toggle {
@@ -130,7 +148,7 @@
   cursor: pointer;
   font-size: var(--text-sm);
   text-align: left;
-  transition: background var(--transition-fast);
+  transition: background 200ms var(--ease-spring);
 }
 
 .item-toggle:hover {
@@ -181,6 +199,7 @@
   line-height: var(--leading-relaxed);
   background: var(--bg-secondary);
   border-top: 1px solid var(--border-primary);
+  animation: fadeIn 200ms var(--ease-out-cubic);
 }
 
 .item-description {
@@ -191,7 +210,7 @@
   background: var(--accent-light);
   border-left: 3px solid var(--accent-primary);
   padding: var(--space-3) var(--space-4);
-  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  border-radius: 0 var(--radius-input) var(--radius-input) 0;
   color: var(--text-primary);
 }
 
@@ -202,30 +221,15 @@
   text-align: center;
 }
 
+/* Inherits base styles from global .btn .btn-primary */
 .practice-weak-areas-btn {
-  background: var(--accent-primary);
-  color: white;
-  border: none;
   padding: var(--space-4) var(--space-10);
-  border-radius: var(--radius-xl);
-  cursor: pointer;
   font-size: var(--text-lg);
-  font-weight: var(--font-semibold);
-  box-shadow: var(--shadow-glow);
-  transition:
-    transform var(--transition-fast),
-    box-shadow var(--transition-fast),
-    background var(--transition-fast);
+  box-shadow: var(--shadow-inset-highlight), var(--shadow-glow);
 }
 
 .practice-weak-areas-btn:hover {
-  background: var(--accent-hover);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-glow-lg);
-}
-
-.practice-weak-areas-btn:active {
-  transform: translateY(0);
+  box-shadow: var(--shadow-inset-highlight), var(--shadow-glow-lg);
 }
 
 .practice-hint {

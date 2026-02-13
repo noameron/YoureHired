@@ -85,6 +85,9 @@ lerna-debug.log*
 .python-version
 .node-version
 
+# Project plans
+PLAN.md
+
 # OS generated files
 Thumbs.db
 ehthumbs.db
