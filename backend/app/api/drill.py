@@ -3,6 +3,7 @@ API endpoints for drill generation.
 """
 
 import json
+import logging
 from collections.abc import AsyncGenerator
 
 from fastapi import APIRouter, HTTPException
@@ -12,6 +13,7 @@ from app.agents.drill import HOW_MANY_GENERATORS
 from app.constants import SSE_HEADERS
 from app.schemas.company_info import CompanySummary
 from app.schemas.drill import (
+    CancelResponse,
     Drill,
     DrillGenerationData,
     DrillGenerationResponse,
@@ -24,8 +26,19 @@ from app.services.company_research import (
 )
 from app.services.drill_generation import generate_drill, generate_drill_stream
 from app.services.session_store import Session, session_store
+from app.services.task_registry import task_registry
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["drill"])
+
+
+@router.post("/cancel/{session_id}", response_model=CancelResponse, status_code=200)
+async def cancel_generation(session_id: str) -> CancelResponse:
+    """Cancel all active agent runs for a session."""
+    logger.info("Cancellation requested for session %s", session_id)
+    task_registry.cancel_all(session_id)
+    return CancelResponse(status="cancelled")
 
 
 async def _generate_sse_error(message: str) -> AsyncGenerator[str, None]:
@@ -133,29 +146,32 @@ async def _generate_drill_stream_events(
     session: Session, session_id: str
 ) -> AsyncGenerator[str, None]:
     """Generate SSE events for drill generation, including research phase if needed."""
-    # Run research phase if needed
-    company_summary, research_gen = await _run_research_if_needed(session, session_id)
-    if research_gen:
-        async for event_str in research_gen:
-            yield event_str
-        # Re-fetch updated summary after research completes
-        updated_session = session_store.get(session_id)
-        company_summary = updated_session.company_summary if updated_session else None
+    try:
+        # Run research phase if needed
+        company_summary, research_gen = await _run_research_if_needed(session, session_id)
+        if research_gen:
+            async for event_str in research_gen:
+                yield event_str
+            # Re-fetch updated summary after research completes
+            updated_session = session_store.get(session_id)
+            company_summary = updated_session.company_summary if updated_session else None
 
-    # Generate drill phase
-    async for event in generate_drill_stream(
-        company_name=session.company_name,
-        role=session.role,
-        session_id=session_id,
-        role_description=session.role_description,
-        company_summary=company_summary,
-        previous_feedback_summary=session.last_feedback_summary,
-    ):
-        # Capture the drill when complete
-        if event["type"] == "complete" and "data" in event:
-            generated_drill = Drill.model_validate(event["data"])
-            session_store.update_current_drill(session_id, generated_drill)
-        yield f"data: {json.dumps(event)}\n\n"
+        # Generate drill phase
+        async for event in generate_drill_stream(
+            company_name=session.company_name,
+            role=session.role,
+            session_id=session_id,
+            role_description=session.role_description,
+            company_summary=company_summary,
+            previous_feedback_summary=session.last_feedback_summary,
+        ):
+            # Capture the drill when complete
+            if event["type"] == "complete" and "data" in event:
+                generated_drill = Drill.model_validate(event["data"])
+                session_store.update_current_drill(session_id, generated_drill)
+            yield f"data: {json.dumps(event)}\n\n"
+    finally:
+        task_registry.cleanup(session_id)
 
 
 @router.get("/generate-drill/{session_id}/stream")

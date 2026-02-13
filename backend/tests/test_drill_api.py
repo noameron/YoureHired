@@ -243,3 +243,112 @@ class TestStreamDrillEndpoint:
         content = response.text
         assert "error" in content
         assert "All generators failed" in content
+
+    @pytest.mark.asyncio
+    async def test_stream_drill_calls_cleanup_on_completion(self, test_session, mock_drill):
+        """Verify that after streaming completes, task_registry.cleanup is called."""
+        # GIVEN - streaming is in progress
+
+        async def mock_stream(*args, **kwargs):
+            yield {"type": "status", "message": "Starting..."}
+            yield {"type": "complete", "data": mock_drill.model_dump()}
+
+        # WHEN - streaming completes
+        with patch(
+            "app.api.drill.generate_drill_stream",
+            return_value=mock_stream(),
+        ), patch("app.api.drill.task_registry") as mock_registry:
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+            ) as client:
+                response = await client.get(f"/api/generate-drill/{test_session.session_id}/stream")
+
+        # THEN - cleanup was called with session_id
+        assert response.status_code == 200
+        mock_registry.cleanup.assert_called_once_with(test_session.session_id)
+
+
+    @pytest.mark.asyncio
+    async def test_stream_drill_calls_cleanup_on_error(self, test_session):
+        """Verify that cleanup is called even when streaming raises an exception."""
+        # GIVEN - streaming raises an error mid-stream
+
+        async def mock_stream(*args, **kwargs):
+            yield {"type": "status", "message": "Starting..."}
+            raise ValueError("Simulated error")
+
+        # WHEN - streaming fails (exception propagates through ASGI transport)
+        with patch(
+            "app.api.drill.generate_drill_stream",
+            return_value=mock_stream(),
+        ), patch("app.api.drill.task_registry") as mock_registry:
+            with pytest.raises(ValueError, match="Simulated error"):
+                async with AsyncClient(
+                    transport=ASGITransport(app=app),
+                    base_url="http://test",
+                ) as client:
+                    await client.get(f"/api/generate-drill/{test_session.session_id}/stream")
+
+            # THEN - cleanup was still called despite the error
+            mock_registry.cleanup.assert_called_once_with(test_session.session_id)
+
+
+class TestCancelEndpoint:
+    """Tests for POST /api/cancel/{session_id}."""
+
+    @pytest.mark.asyncio
+    async def test_cancel_returns_200_and_status(self):
+        """POST to cancel endpoint returns 200 with status cancelled."""
+        # GIVEN - a session id to cancel
+
+        # WHEN - posting to cancel endpoint
+        with patch("app.api.drill.task_registry"):
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+            ) as client:
+                response = await client.post("/api/cancel/test-session-id")
+
+        # THEN - returns 200 with cancelled status
+        assert response.status_code == 200
+        data = response.json()
+        assert data == {"status": "cancelled"}
+
+    @pytest.mark.asyncio
+    async def test_cancel_calls_task_registry_cancel_all(self):
+        """Verify task_registry.cancel_all is called with correct session_id."""
+        # GIVEN - a session id to cancel
+        session_id = "test-session-123"
+
+        # WHEN - posting to cancel endpoint
+        with patch("app.api.drill.task_registry") as mock_registry:
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+            ) as client:
+                response = await client.post(f"/api/cancel/{session_id}")
+
+        # THEN - task_registry.cancel_all was called with session_id
+        assert response.status_code == 200
+        mock_registry.cancel_all.assert_called_once_with(session_id)
+
+    @pytest.mark.asyncio
+    async def test_cancel_unknown_session_still_succeeds(self):
+        """POST to cancel with nonexistent session still returns 200."""
+        # GIVEN - a nonexistent session id
+
+        # WHEN - posting to cancel endpoint
+        with patch("app.api.drill.task_registry") as mock_registry:
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+            ) as client:
+                response = await client.post("/api/cancel/nonexistent-session")
+
+        # THEN - returns 200 (cancel is idempotent)
+        assert response.status_code == 200
+        data = response.json()
+        assert data == {"status": "cancelled"}
+        # Registry was still called
+        mock_registry.cancel_all.assert_called_once_with("nonexistent-session")
