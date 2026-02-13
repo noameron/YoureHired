@@ -33,7 +33,7 @@
   display: flex;
   justify-content: center;
   padding: var(--space-8) 0;
-  animation: fadeIn 0.5s ease;
+  animation: fadeIn 500ms var(--ease-out-cubic);
 }
 
 .arrow-button {
@@ -44,17 +44,24 @@
   height: 48px;
   color: var(--accent-primary);
   cursor: pointer;
-  animation: bounce 2s infinite;
-  transition: all var(--transition-fast);
+  animation: float 3s ease-in-out infinite;
+  transition: all 200ms var(--ease-spring);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .arrow-button:hover {
-  background: var(--accent-primary);
+  background: var(--gradient-primary-btn);
+  border-color: transparent;
   color: white;
   animation: none;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-glow);
+}
+
+.arrow-button:active {
+  transform: translateY(1px) scale(0.95);
 }
 
 .arrow-button svg {
@@ -72,24 +79,10 @@
   margin-bottom: var(--space-6);
 }
 
+/* Inherits base styles from global .btn .btn-primary */
 .retry-button {
-  background: var(--accent-primary);
-  color: white;
-  border: none;
   padding: var(--space-3) var(--space-8);
-  border-radius: var(--radius-lg);
-  cursor: pointer;
   font-size: var(--text-base);
-  font-weight: var(--font-semibold);
-  transition:
-    background var(--transition-fast),
-    box-shadow var(--transition-fast);
-  box-shadow: 0 2px 8px var(--accent-glow);
-}
-
-.retry-button:hover {
-  background: var(--accent-hover);
-  box-shadow: var(--shadow-glow);
 }
 
 /* Mobile responsiveness */

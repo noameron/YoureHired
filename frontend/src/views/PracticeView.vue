@@ -145,7 +145,7 @@ onMounted(() => {
           {{ error }}
         </p>
         <button
-          class="retry-button"
+          class="btn btn-primary retry-button"
           @click="retry"
         >
           Try Again
