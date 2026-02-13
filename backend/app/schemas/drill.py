@@ -111,6 +111,12 @@ class DrillGenerationResponse(BaseModel):
     data: DrillGenerationData
 
 
+class CancelResponse(BaseModel):
+    """Response for cancel endpoint."""
+
+    status: str
+
+
 class DrillGenerationErrorDetail(BaseModel):
     """Error detail for drill generation."""
 

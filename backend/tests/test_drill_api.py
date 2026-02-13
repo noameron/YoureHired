@@ -269,6 +269,31 @@ class TestStreamDrillEndpoint:
         mock_registry.cleanup.assert_called_once_with(test_session.session_id)
 
 
+    @pytest.mark.asyncio
+    async def test_stream_drill_calls_cleanup_on_error(self, test_session):
+        """Verify that cleanup is called even when streaming raises an exception."""
+        # GIVEN - streaming raises an error mid-stream
+
+        async def mock_stream(*args, **kwargs):
+            yield {"type": "status", "message": "Starting..."}
+            raise ValueError("Simulated error")
+
+        # WHEN - streaming fails (exception propagates through ASGI transport)
+        with patch(
+            "app.api.drill.generate_drill_stream",
+            return_value=mock_stream(),
+        ), patch("app.api.drill.task_registry") as mock_registry:
+            with pytest.raises(ValueError, match="Simulated error"):
+                async with AsyncClient(
+                    transport=ASGITransport(app=app),
+                    base_url="http://test",
+                ) as client:
+                    await client.get(f"/api/generate-drill/{test_session.session_id}/stream")
+
+            # THEN - cleanup was still called despite the error
+            mock_registry.cleanup.assert_called_once_with(test_session.session_id)
+
+
 class TestCancelEndpoint:
     """Tests for POST /api/cancel/{session_id}."""
 
@@ -278,7 +303,7 @@ class TestCancelEndpoint:
         # GIVEN - a session id to cancel
 
         # WHEN - posting to cancel endpoint
-        with patch("app.api.drill.task_registry") as mock_registry:
+        with patch("app.api.drill.task_registry"):
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",

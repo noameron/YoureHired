@@ -3,6 +3,7 @@ API endpoints for drill generation.
 """
 
 import json
+import logging
 from collections.abc import AsyncGenerator
 
 from fastapi import APIRouter, HTTPException
@@ -12,6 +13,7 @@ from app.agents.drill import HOW_MANY_GENERATORS
 from app.constants import SSE_HEADERS
 from app.schemas.company_info import CompanySummary
 from app.schemas.drill import (
+    CancelResponse,
     Drill,
     DrillGenerationData,
     DrillGenerationResponse,
@@ -26,14 +28,17 @@ from app.services.drill_generation import generate_drill, generate_drill_stream
 from app.services.session_store import Session, session_store
 from app.services.task_registry import task_registry
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(tags=["drill"])
 
 
-@router.post("/cancel/{session_id}")
-async def cancel_generation(session_id: str) -> dict[str, str]:
+@router.post("/cancel/{session_id}", response_model=CancelResponse, status_code=200)
+async def cancel_generation(session_id: str) -> CancelResponse:
     """Cancel all active agent runs for a session."""
+    logger.info("Cancellation requested for session %s", session_id)
     task_registry.cancel_all(session_id)
-    return {"status": "cancelled"}
+    return CancelResponse(status="cancelled")
 
 
 async def _generate_sse_error(message: str) -> AsyncGenerator[str, None]:
