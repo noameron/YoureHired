@@ -89,10 +89,11 @@ The Vite dev server proxies calls to `/api` → `http://localhost:8000` (see `fr
    - Pick a role from the dropdown (roles are fetched from the backend).
    - Optionally paste a **role description** (e.g., from the job listing) — the agents use it as extra context when generating drills and research, so tasks match the actual position more closely.
    - Submit to create a session.
-3. You’ll be redirected to the Practice view:
-   - Watch live status updates as the research runs (planning → searching → summarizing).
-   - When complete, a structured summary appears (overview, tech stack, culture, news, interview tips, sources).
-4. Use the summary as context to practice answering questions or designing solutions relevant to the company and role.
+3. You'll be redirected to the Practice view:
+   - Watch live status updates as agents research the company and generate a tailored drill.
+   - You can **cancel** at any time during generation — you'll return to the home screen with your form fields preserved.
+   - When complete, the drill appears with a description, requirements, starter code, and hints.
+4. Write your solution in the editor and submit for LLM-powered feedback (score, strengths, areas for improvement).
 
 ## Main Endpoints (Backend)
 
@@ -101,6 +102,10 @@ The Vite dev server proxies calls to `/api` → `http://localhost:8000` (see `fr
 - `POST /api/user-selection` → Creates a session for the selected company/role
 - `GET /api/company-info/{session_id}` → Returns researched summary (non-streaming)
 - `GET /api/company-research/{session_id}/stream` → Streams research progress via SSE
+- `POST /api/generate-drill/{session_id}` → Generates a practice drill (non-streaming)
+- `GET /api/generate-drill/{session_id}/stream` → Streams drill generation progress via SSE
+- `POST /api/cancel/{session_id}` → Cancels all active agent runs for a session
+- `POST /api/evaluate-solution/{session_id}` → Evaluates a user's submitted solution
 
 ## Project Structure
 
