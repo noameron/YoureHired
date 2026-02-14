@@ -16,7 +16,7 @@
   width: 100%;
 }
 
-/* Connector between cards */
+/* Connector between cards — brass pipe aesthetic */
 .connector {
   display: flex;
   flex-direction: column;
@@ -33,7 +33,7 @@
   transition: background 300ms var(--ease-out-cubic);
 }
 
-/* Greyed state - first agent running */
+/* Greyed state */
 .connector.greyed .connector-line {
   background: var(--border-secondary);
 }
@@ -42,7 +42,7 @@
   color: var(--text-muted);
 }
 
-/* Loading state - smooth pulse instead of flicker */
+/* Loading state — brass pulse */
 .connector.loading .connector-line {
   background: var(--accent-primary);
   animation: pulse 1.5s ease-in-out infinite;
@@ -53,7 +53,7 @@
   animation: pulse 1.5s ease-in-out infinite;
 }
 
-/* Complete state - solid active */
+/* Complete state — solid brass */
 .connector.complete .connector-line {
   background: var(--accent-primary);
 }
