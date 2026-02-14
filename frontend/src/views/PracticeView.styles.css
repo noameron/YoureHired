@@ -29,6 +29,12 @@
   margin-bottom: var(--space-6);
 }
 
+.cancel-button {
+  margin-top: var(--space-6);
+  padding: var(--space-3) var(--space-8);
+  font-size: var(--text-sm);
+}
+
 .transition-arrow {
   display: flex;
   justify-content: center;

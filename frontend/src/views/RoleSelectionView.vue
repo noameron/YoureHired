@@ -9,9 +9,9 @@
   const router = useRouter()
 
   // Form state
-  const companyName = ref('')
-  const role = ref('')
-  const roleDescription = ref('')
+  const companyName = ref(store.companyName || '')
+  const role = ref(store.role || '')
+  const roleDescription = ref(store.roleDescription || '')
 
   // UI state
   const roles = ref<Role[]>([])

@@ -52,9 +52,11 @@ export async function submitUserSelection(
  * Yields events as they arrive from the backend.
  */
 export async function* streamDrillGeneration(
-  sessionId: string
+  sessionId: string,
+  signal?: AbortSignal
 ): AsyncGenerator<DrillStreamEvent> {
-  const response = await fetch(`${API_BASE}/generate-drill/${sessionId}/stream`)
+  const url = `${API_BASE}/generate-drill/${sessionId}/stream`
+  const response = signal ? await fetch(url, { signal }) : await fetch(url)
 
   if (!response.ok) {
     throw new Error(`Stream failed: ${response.status}`)
@@ -77,6 +79,19 @@ export async function* streamDrillGeneration(
         yield JSON.parse(line.slice(6)) as DrillStreamEvent
       }
     }
+  }
+}
+
+/**
+ * Cancel active agent generation for a session.
+ * Tells the backend to stop all running agents.
+ * Fire-and-forget: silently ignores all errors.
+ */
+export async function cancelGeneration(sessionId: string): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/cancel/${sessionId}`, { method: 'POST' })
+  } catch {
+    // fire-and-forget: silently ignore errors
   }
 }
 
