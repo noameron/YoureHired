@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { streamDrillGeneration } from '@/services/api'
+import { streamDrillGeneration, cancelGeneration } from '@/services/api'
 import type { DrillStreamEvent } from '@/services/types'
 
 declare const global: { fetch: typeof fetch }
@@ -55,6 +55,26 @@ describe('streamDrillGeneration', () => {
 
       // THEN
       expect(global.fetch).toHaveBeenCalledWith('/api/generate-drill/my-session-123/stream')
+    })
+
+    it('passes AbortSignal to fetch when signal is provided', async () => {
+      // GIVEN
+      const sessionId = 'my-session-123'
+      const abortController = new AbortController()
+      const signal = abortController.signal
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        body: createMockSSEStream([])
+      })
+
+      // WHEN
+      const generator = streamDrillGeneration(sessionId, signal)
+      await generator.next()
+
+      // THEN
+      expect(global.fetch).toHaveBeenCalledWith('/api/generate-drill/my-session-123/stream', {
+        signal
+      })
     })
   })
 
@@ -228,5 +248,73 @@ describe('streamDrillGeneration', () => {
       expect(events).toHaveLength(1)
       expect(events[0]).toEqual({ type: 'status', message: 'Valid' })
     })
+  })
+})
+
+describe('cancelGeneration', () => {
+  const originalFetch = global.fetch
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  afterEach(() => {
+    global.fetch = originalFetch
+  })
+
+  it('calls POST request to cancel endpoint with sessionId', async () => {
+    // GIVEN
+    const sessionId = 'session-abc-123'
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true })
+    })
+
+    // WHEN
+    await cancelGeneration(sessionId)
+
+    // THEN
+    expect(global.fetch).toHaveBeenCalledWith('/api/cancel/session-abc-123', {
+      method: 'POST'
+    })
+  })
+
+  it('resolves successfully when response is ok', async () => {
+    // GIVEN
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true })
+    })
+
+    // WHEN
+    const result = cancelGeneration('test-session')
+
+    // THEN
+    await expect(result).resolves.toBeUndefined()
+  })
+
+  it('does not throw when response is not ok', async () => {
+    // GIVEN
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404
+    })
+
+    // WHEN
+    const result = cancelGeneration('test-session')
+
+    // THEN - fire-and-forget, no error thrown
+    await expect(result).resolves.toBeUndefined()
+  })
+
+  it('does not throw when fetch fails', async () => {
+    // GIVEN
+    global.fetch = vi.fn().mockRejectedValue(new Error('Network error'))
+
+    // WHEN
+    const result = cancelGeneration('test-session')
+
+    // THEN - fire-and-forget, no error thrown
+    await expect(result).resolves.toBeUndefined()
   })
 })

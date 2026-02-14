@@ -3,6 +3,7 @@ import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import type { ComponentPublicInstance } from 'vue'
 import { setActivePinia, createPinia } from 'pinia'
 import RoleSelectionView from '@/views/RoleSelectionView.vue'
+import { useUserSelectionStore } from '@/stores/userSelection'
 import * as api from '@/services/api'
 import type { RolesResponse, UserSelectionResponse } from '@/types/api'
 
@@ -297,6 +298,95 @@ describe('RoleSelectionView', () => {
       await flushPromises()
 
       // THEN - submission completes (button re-enabled or form replaced)
+    })
+  })
+
+  describe('form pre-fill from store', () => {
+    it('pre-fills form fields when store has values', async () => {
+      // GIVEN - store has selection values
+      const store = useUserSelectionStore()
+      store.setSelection({
+        companyName: 'Acme Corp',
+        role: 'frontend_developer',
+        roleDescription: 'Build React apps with TypeScript and modern tooling',
+        sessionId: 'session-abc'
+      })
+
+      // WHEN - component mounts
+      const wrapper = await mountComponent()
+
+      // THEN - form fields are populated
+      expect((wrapper.find('input[name="companyName"]').element as HTMLInputElement).value).toBe(
+        'Acme Corp'
+      )
+      expect((wrapper.find('select[name="role"]').element as HTMLSelectElement).value).toBe(
+        'frontend_developer'
+      )
+      expect(
+        (wrapper.find('textarea[name="roleDescription"]').element as HTMLTextAreaElement).value
+      ).toBe('Build React apps with TypeScript and modern tooling')
+    })
+
+    it('shows empty fields when store values are empty', async () => {
+      // GIVEN - store has empty values (default state)
+      const store = useUserSelectionStore()
+      expect(store.companyName).toBe('')
+      expect(store.role).toBe('')
+      expect(store.roleDescription).toBeNull()
+
+      // WHEN - component mounts
+      const wrapper = await mountComponent()
+
+      // THEN - form fields are empty
+      expect((wrapper.find('input[name="companyName"]').element as HTMLInputElement).value).toBe('')
+      expect((wrapper.find('select[name="role"]').element as HTMLSelectElement).value).toBe('')
+      expect(
+        (wrapper.find('textarea[name="roleDescription"]').element as HTMLTextAreaElement).value
+      ).toBe('')
+    })
+
+    it('shows empty textarea when roleDescription is null in store', async () => {
+      // GIVEN - store has null roleDescription
+      const store = useUserSelectionStore()
+      store.setSelection({
+        companyName: 'Test Corp',
+        role: 'backend_developer',
+        roleDescription: null,
+        sessionId: 'session-xyz'
+      })
+
+      // WHEN - component mounts
+      const wrapper = await mountComponent()
+
+      // THEN - textarea shows empty string
+      expect(
+        (wrapper.find('textarea[name="roleDescription"]').element as HTMLTextAreaElement).value
+      ).toBe('')
+    })
+
+    it('pre-fills only some fields when store has partial values', async () => {
+      // GIVEN - store has only company name and role
+      const store = useUserSelectionStore()
+      store.setSelection({
+        companyName: 'Partial Corp',
+        role: 'fullstack_developer',
+        roleDescription: null,
+        sessionId: null
+      })
+
+      // WHEN - component mounts
+      const wrapper = await mountComponent()
+
+      // THEN - only populated fields are pre-filled
+      expect((wrapper.find('input[name="companyName"]').element as HTMLInputElement).value).toBe(
+        'Partial Corp'
+      )
+      expect((wrapper.find('select[name="role"]').element as HTMLSelectElement).value).toBe(
+        'fullstack_developer'
+      )
+      expect(
+        (wrapper.find('textarea[name="roleDescription"]').element as HTMLTextAreaElement).value
+      ).toBe('')
     })
   })
 })
