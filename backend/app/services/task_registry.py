@@ -13,10 +13,14 @@ class TaskRegistry:
 
     def __init__(self) -> None:
         self._active: dict[str, list[RunResultStreaming]] = {}
+        self._cancelled: set[str] = set()
         self._lock = Lock()
 
     def register(self, session_id: str, result: RunResultStreaming) -> None:
         with self._lock:
+            if session_id in self._cancelled:
+                result.cancel(mode="immediate")
+                return
             self._active.setdefault(session_id, []).append(result)
 
     def unregister(self, session_id: str, result: RunResultStreaming) -> None:
@@ -33,6 +37,7 @@ class TaskRegistry:
 
     def cancel_all(self, session_id: str) -> None:
         with self._lock:
+            self._cancelled.add(session_id)
             results = self._active.pop(session_id, [])
         for result in results:
             if not result.is_complete:
@@ -40,7 +45,11 @@ class TaskRegistry:
 
     def cleanup(self, session_id: str) -> None:
         with self._lock:
-            self._active.pop(session_id, None)
+            results = self._active.pop(session_id, [])
+            self._cancelled.discard(session_id)
+        for result in results:
+            if not result.is_complete:
+                result.cancel(mode="immediate")
 
 
 task_registry = TaskRegistry()
