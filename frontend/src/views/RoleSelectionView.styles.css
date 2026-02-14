@@ -18,11 +18,11 @@ h1 {
   margin-bottom: var(--space-8);
   color: var(--text-primary);
   font-size: var(--text-3xl);
-  font-weight: var(--font-semibold);
   text-align: center;
+  letter-spacing: 0.04em;
 }
 
-/* Animated Background */
+/* Decorative gear background — replaces floating emerald icons */
 .background-animation {
   position: fixed;
   top: 0;
@@ -38,9 +38,9 @@ h1 {
   position: absolute;
   width: 48px;
   height: 48px;
-  color: var(--accent-primary);
-  opacity: 0.1;
-  animation: orbit 25s linear infinite;
+  color: var(--ornament-color);
+  opacity: 0.08;
+  animation: gearSpin 25s linear infinite;
 }
 
 .floating-icon svg {
@@ -51,54 +51,45 @@ h1 {
 .icon-1 {
   top: 15%;
   left: 20%;
-  animation-duration: 22s;
+  animation-duration: 40s;
   animation-delay: 0s;
 }
 
 .icon-2 {
   top: 25%;
   right: 15%;
-  animation-duration: 28s;
+  animation-duration: 55s;
   animation-delay: -4s;
 }
 
 .icon-3 {
   top: 50%;
   left: 10%;
-  animation-duration: 20s;
+  animation-duration: 35s;
   animation-delay: -8s;
 }
 
 .icon-4 {
   bottom: 30%;
   right: 20%;
-  animation-duration: 26s;
+  animation-duration: 50s;
   animation-delay: -12s;
 }
 
 .icon-5 {
   bottom: 15%;
   left: 25%;
-  animation-duration: 24s;
+  animation-duration: 45s;
   animation-delay: -16s;
 }
 
 .icon-6 {
   top: 60%;
   right: 10%;
-  animation-duration: 30s;
+  animation-duration: 60s;
   animation-delay: -6s;
   width: 40px;
   height: 40px;
-}
-
-@keyframes orbit {
-  0% {
-    transform: rotate(0deg) translateX(80px) rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg) translateX(80px) rotate(-360deg);
-  }
 }
 
 /* Respect reduced motion preference */
@@ -140,8 +131,37 @@ h1 {
   border-radius: var(--radius-card);
   padding: var(--space-8);
   box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-primary);
   text-align: center;
   animation: fadeIn 300ms var(--ease-out-cubic);
+  position: relative;
+}
+
+/* Brass rivets on success card */
+.success-card::before,
+.success-card::after {
+  content: '';
+  position: absolute;
+  width: var(--rivet-size);
+  height: var(--rivet-size);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 35%,
+    var(--rivet-highlight) 0%,
+    var(--rivet-color) 50%,
+    var(--rivet-shadow) 100%
+  );
+  box-shadow: var(--rivet-box-shadow);
+}
+
+.success-card::before {
+  top: 12px;
+  left: 12px;
+}
+
+.success-card::after {
+  top: 12px;
+  right: 12px;
 }
 
 .success-icon {
@@ -167,6 +187,7 @@ h1 {
   background: var(--bg-tertiary);
   border-radius: var(--radius-xl);
   padding: var(--space-5);
+  border: 1px solid var(--border-subtle);
 }
 
 .success-details p {
@@ -185,7 +206,7 @@ h1 {
 
 .success-details strong {
   color: var(--text-secondary);
-  font-weight: var(--font-medium);
+  font-weight: var(--font-bold);
 }
 
 /* Form cards */
@@ -200,11 +221,39 @@ h1 {
   border-radius: var(--radius-card);
   padding: var(--space-6);
   box-shadow: var(--shadow-card);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-primary);
+  position: relative;
   transition:
     box-shadow 300ms var(--ease-out-cubic),
     border-color 300ms var(--ease-out-cubic),
     transform 300ms var(--ease-out-cubic);
+}
+
+/* Brass rivets on form cards */
+.form-card::before,
+.form-card::after {
+  content: '';
+  position: absolute;
+  width: var(--rivet-size);
+  height: var(--rivet-size);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 35%,
+    var(--rivet-highlight) 0%,
+    var(--rivet-color) 50%,
+    var(--rivet-shadow) 100%
+  );
+  box-shadow: var(--rivet-box-shadow);
+}
+
+.form-card::before {
+  top: 12px;
+  left: 12px;
+}
+
+.form-card::after {
+  top: 12px;
+  right: 12px;
 }
 
 .form-card:hover {
@@ -222,12 +271,14 @@ h1 {
 label {
   display: block;
   margin-bottom: var(--space-3);
-  font-weight: var(--font-semibold);
+  font-weight: var(--font-bold);
   font-size: var(--text-sm);
   color: var(--text-primary);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
 }
 
-/* Input fields */
+/* Input fields — engraved/recessed style */
 input,
 select,
 textarea {
@@ -240,6 +291,7 @@ textarea {
   box-sizing: border-box;
   background: var(--bg-input);
   color: var(--text-primary);
+  box-shadow: var(--shadow-inset);
   transition:
     border-color 200ms var(--ease-spring),
     box-shadow 200ms var(--ease-spring);
@@ -262,7 +314,7 @@ textarea:focus {
   outline: none;
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px var(--accent-light),
-    inset 0 1px 2px rgba(0, 0, 0, 0.06);
+    var(--shadow-inset-light);
 }
 
 input.error,
@@ -325,7 +377,7 @@ textarea {
   color: var(--color-error-text);
   font-size: var(--text-sm);
   margin-top: var(--space-2);
-  font-weight: var(--font-medium);
+  font-weight: var(--font-bold);
 }
 
 .submit-error {

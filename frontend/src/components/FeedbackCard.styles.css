@@ -3,8 +3,36 @@
   border-radius: var(--radius-card);
   padding: var(--space-8);
   box-shadow: var(--shadow-card);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-primary);
   margin-top: var(--space-8);
+  position: relative;
+}
+
+/* Brass rivets — top corners */
+.feedback-card::before,
+.feedback-card::after {
+  content: '';
+  position: absolute;
+  width: var(--rivet-size);
+  height: var(--rivet-size);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 35%,
+    var(--rivet-highlight) 0%,
+    var(--rivet-color) 50%,
+    var(--rivet-shadow) 100%
+  );
+  box-shadow: var(--rivet-box-shadow);
+}
+
+.feedback-card::before {
+  top: 12px;
+  left: 12px;
+}
+
+.feedback-card::after {
+  top: 12px;
+  right: 12px;
 }
 
 .loading-state {
@@ -27,6 +55,7 @@
   font-size: var(--text-base);
 }
 
+/* Art Deco divider for score header */
 .score-header {
   display: flex;
   justify-content: space-between;
@@ -34,6 +63,22 @@
   margin-bottom: var(--space-6);
   padding-bottom: var(--space-6);
   border-bottom: 1px solid var(--border-primary);
+  position: relative;
+}
+
+.score-header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 20%;
+  right: 20%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--accent-primary) 50%,
+    transparent 100%
+  );
 }
 
 .score-header h2 {
@@ -51,38 +96,31 @@
   flex-wrap: wrap;
   justify-content: center;
   font-variant-numeric: tabular-nums;
+  border: 1px solid transparent;
 }
 
 .score-badge.good {
-  background: linear-gradient(
-    135deg,
-    var(--color-success-bg) 0%,
-    rgba(16, 185, 129, 0.05) 100%
-  );
+  background: var(--color-success-bg);
   color: var(--color-success-text);
+  border-color: rgba(90, 138, 90, 0.3);
 }
 
 .score-badge.adequate {
-  background: linear-gradient(
-    135deg,
-    var(--color-warning-bg) 0%,
-    rgba(245, 158, 11, 0.05) 100%
-  );
+  background: var(--color-warning-bg);
   color: var(--color-warning-text);
+  border-color: rgba(196, 154, 60, 0.3);
 }
 
 .score-badge.needs-work {
-  background: linear-gradient(
-    135deg,
-    var(--color-error-bg) 0%,
-    rgba(239, 68, 68, 0.05) 100%
-  );
+  background: var(--color-error-bg);
   color: var(--color-error-text);
+  border-color: rgba(160, 64, 48, 0.3);
 }
 
 .score-value {
+  font-family: var(--font-display);
   font-size: var(--text-3xl);
-  font-weight: var(--font-bold);
+  font-weight: var(--font-normal);
   line-height: 1;
 }
 
@@ -93,8 +131,9 @@
 
 .score-label {
   font-size: var(--text-xs);
-  font-weight: var(--font-semibold);
+  font-weight: var(--font-bold);
   text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
   width: 100%;
   text-align: center;
   margin-top: var(--space-1);
@@ -179,7 +218,7 @@
 
 .item-title {
   flex: 1;
-  font-weight: var(--font-semibold);
+  font-weight: var(--font-bold);
   color: var(--text-primary);
 }
 
