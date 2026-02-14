@@ -45,7 +45,8 @@ function setupStoreWithSession(sessionId = 'test-session-123') {
     companyName: 'Test Corp',
     role: 'Backend Developer',
     roleDescription: null,
-    sessionId
+    sessionId,
+    roleId: 'backend_developer'
   })
   return store
 }
@@ -519,7 +520,7 @@ describe('PracticeView', () => {
     })
 
     describe('cancel button behavior', () => {
-      it('navigates to home when cancel button is clicked', async () => {
+      it('navigates to home with query params when cancel button is clicked', async () => {
         // GIVEN
         setupStoreWithSession('test-session-cancel')
 
@@ -532,7 +533,44 @@ describe('PracticeView', () => {
         await flushPromises()
 
         // THEN
-        expect(mockPush).toHaveBeenCalledWith('/')
+        expect(mockPush).toHaveBeenCalledWith({
+          path: '/',
+          query: {
+            company: 'Test Corp',
+            role: 'backend_developer',
+            description: undefined
+          }
+        })
+      })
+
+      it('navigates with roleId instead of role label when cancel button is clicked', async () => {
+        // GIVEN - store has both roleId and role label
+        const store = useUserSelectionStore()
+        store.setSelection({
+          companyName: 'Test Corp',
+          role: 'Backend Developer',
+          roleDescription: 'Work on APIs',
+          sessionId: 'test-session-123',
+          roleId: 'backend_developer'
+        })
+
+        vi.mocked(api.streamDrillGeneration).mockReturnValue(createNeverEndingStream())
+        const wrapper = mount(PracticeView)
+        await flushPromises()
+
+        // WHEN - cancel button is clicked
+        await wrapper.find('[data-testid="cancel-generation"]').trigger('click')
+        await flushPromises()
+
+        // THEN - router receives roleId in query params, not role label
+        expect(mockPush).toHaveBeenCalledWith({
+          path: '/',
+          query: {
+            company: 'Test Corp',
+            role: 'backend_developer',
+            description: 'Work on APIs'
+          }
+        })
       })
 
       it('calls cancelGeneration with sessionId when cancel button is clicked', async () => {

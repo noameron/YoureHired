@@ -90,7 +90,14 @@ async function cancelGeneration() {
   if (store.sessionId) {
     cancelGenerationApi(store.sessionId).catch(() => {})
   }
-  router.push('/')
+  router.push({
+    path: '/',
+    query: {
+      company: store.companyName || undefined,
+      role: store.roleId || undefined,
+      description: store.roleDescription || undefined,
+    }
+  })
 }
 
 function retry() {
