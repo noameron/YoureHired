@@ -45,7 +45,8 @@ function setupStoreWithSession(sessionId = 'test-session-123') {
     companyName: 'Test Corp',
     role: 'Backend Developer',
     roleDescription: null,
-    sessionId
+    sessionId,
+    roleId: 'backend_developer'
   })
   return store
 }
@@ -67,6 +68,14 @@ async function mountWithStream(
   return wrapper
 }
 
+// Helper to create a stream that never resolves (for loading state tests)
+function createNeverEndingStream(): AsyncGenerator<DrillStreamEvent> {
+  return (async function* (): AsyncGenerator<DrillStreamEvent> {
+    await new Promise<void>(() => {})
+    yield { type: 'status', message: '' } // unreachable but satisfies linter
+  })()
+}
+
 // Helper to find section by heading text
 function findSection(wrapper: VueWrapper, heading: string) {
   return wrapper.findAll('.section').find((s) => s.find('h3').text() === heading)
@@ -76,6 +85,8 @@ describe('PracticeView', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    // Mock cancelGeneration as a resolved promise by default
+    vi.mocked(api.cancelGeneration).mockResolvedValue(undefined)
   })
 
   describe('session validation', () => {
@@ -98,13 +109,7 @@ describe('PracticeView', () => {
     it('shows initial connecting status', async () => {
       setupStoreWithSession()
 
-      // Create a stream that never resolves (yield is unreachable but satisfies linter)
-      const neverEndingStream = async function* (): AsyncGenerator<DrillStreamEvent> {
-        await new Promise<void>(() => {})
-        yield { type: 'status', message: '' }
-      }
-
-      vi.mocked(api.streamDrillGeneration).mockReturnValue(neverEndingStream())
+      vi.mocked(api.streamDrillGeneration).mockReturnValue(createNeverEndingStream())
       const wrapper = mount(PracticeView)
 
       expect(wrapper.find('.loading-state').exists()).toBe(true)
@@ -453,7 +458,200 @@ describe('PracticeView', () => {
       mount(PracticeView)
       await flushPromises()
 
-      expect(api.streamDrillGeneration).toHaveBeenCalledWith('test-session-456')
+      expect(api.streamDrillGeneration).toHaveBeenCalledWith('test-session-456', expect.any(AbortSignal))
+    })
+
+    it('passes AbortSignal to streamDrillGeneration', async () => {
+      // GIVEN
+      setupStoreWithSession('test-session-789')
+      vi.mocked(api.streamDrillGeneration).mockReturnValue(
+        createMockStream([{ type: 'status', message: 'Starting...' }])
+      )
+
+      // WHEN
+      mount(PracticeView)
+      await flushPromises()
+
+      // THEN
+      expect(api.streamDrillGeneration).toHaveBeenCalledTimes(1)
+      const callArgs = vi.mocked(api.streamDrillGeneration).mock.calls[0]
+      expect(callArgs[0]).toBe('test-session-789')
+      expect(callArgs[1]).toBeInstanceOf(AbortSignal)
+    })
+  })
+
+  describe('cancel functionality', () => {
+    describe('cancel button visibility', () => {
+      it('shows cancel button during loading state', async () => {
+        // GIVEN
+        setupStoreWithSession()
+
+        vi.mocked(api.streamDrillGeneration).mockReturnValue(createNeverEndingStream())
+
+        // WHEN
+        const wrapper = mount(PracticeView)
+        await flushPromises()
+
+        // THEN
+        expect(wrapper.find('[data-testid="cancel-generation"]').exists()).toBe(true)
+      })
+
+      it('hides cancel button when drill is complete', async () => {
+        // GIVEN
+        const events: DrillStreamEvent[] = [{ type: 'complete', data: mockDrill }]
+
+        // WHEN
+        const wrapper = await mountWithStream(events)
+
+        // THEN
+        expect(wrapper.find('[data-testid="cancel-generation"]').exists()).toBe(false)
+      })
+
+      it('hides cancel button when there is an error', async () => {
+        // GIVEN
+        const events: DrillStreamEvent[] = [{ type: 'error', message: 'Failed' }]
+
+        // WHEN
+        const wrapper = await mountWithStream(events)
+
+        // THEN
+        expect(wrapper.find('[data-testid="cancel-generation"]').exists()).toBe(false)
+      })
+    })
+
+    describe('cancel button behavior', () => {
+      it('navigates to home with query params when cancel button is clicked', async () => {
+        // GIVEN
+        setupStoreWithSession('test-session-cancel')
+
+        vi.mocked(api.streamDrillGeneration).mockReturnValue(createNeverEndingStream())
+        const wrapper = mount(PracticeView)
+        await flushPromises()
+
+        // WHEN
+        await wrapper.find('[data-testid="cancel-generation"]').trigger('click')
+        await flushPromises()
+
+        // THEN
+        expect(mockPush).toHaveBeenCalledWith({
+          path: '/',
+          query: {
+            company: 'Test Corp',
+            role: 'backend_developer',
+            description: undefined
+          }
+        })
+      })
+
+      it('navigates with roleId instead of role label when cancel button is clicked', async () => {
+        // GIVEN - store has both roleId and role label
+        const store = useUserSelectionStore()
+        store.setSelection({
+          companyName: 'Test Corp',
+          role: 'Backend Developer',
+          roleDescription: 'Work on APIs',
+          sessionId: 'test-session-123',
+          roleId: 'backend_developer'
+        })
+
+        vi.mocked(api.streamDrillGeneration).mockReturnValue(createNeverEndingStream())
+        const wrapper = mount(PracticeView)
+        await flushPromises()
+
+        // WHEN - cancel button is clicked
+        await wrapper.find('[data-testid="cancel-generation"]').trigger('click')
+        await flushPromises()
+
+        // THEN - router receives roleId in query params, not role label
+        expect(mockPush).toHaveBeenCalledWith({
+          path: '/',
+          query: {
+            company: 'Test Corp',
+            role: 'backend_developer',
+            description: 'Work on APIs'
+          }
+        })
+      })
+
+      it('calls cancelGeneration with sessionId when cancel button is clicked', async () => {
+        // GIVEN
+        setupStoreWithSession('test-session-cancel-api')
+
+        vi.mocked(api.streamDrillGeneration).mockReturnValue(createNeverEndingStream())
+        const wrapper = mount(PracticeView)
+        await flushPromises()
+
+        const cancelGenerationMock = vi.mocked(api.cancelGeneration)
+
+        // WHEN
+        await wrapper.find('[data-testid="cancel-generation"]').trigger('click')
+        await flushPromises()
+
+        // THEN
+        expect(cancelGenerationMock).toHaveBeenCalledWith('test-session-cancel-api')
+      })
+    })
+
+    describe('AbortError handling', () => {
+      it('does not show error when stream throws AbortError', async () => {
+        // GIVEN
+        setupStoreWithSession()
+
+        vi.mocked(api.streamDrillGeneration).mockImplementation(
+          async function* (): AsyncGenerator<DrillStreamEvent> {
+            const abortError = new DOMException('The operation was aborted', 'AbortError')
+            throw abortError
+            yield { type: 'status', message: '' } // unreachable
+          }
+        )
+
+        // WHEN
+        const wrapper = mount(PracticeView)
+        await flushPromises()
+
+        // THEN
+        expect(wrapper.find('.error-state').exists()).toBe(false)
+      })
+
+      it('does not show error when stream throws DOMException with name AbortError', async () => {
+        // GIVEN
+        setupStoreWithSession()
+
+        vi.mocked(api.streamDrillGeneration).mockImplementation(
+          async function* (): AsyncGenerator<DrillStreamEvent> {
+            const error = new DOMException('Aborted', 'AbortError')
+            throw error
+            yield { type: 'status', message: '' } // unreachable
+          }
+        )
+
+        // WHEN
+        const wrapper = mount(PracticeView)
+        await flushPromises()
+
+        // THEN
+        expect(wrapper.find('.error-state').exists()).toBe(false)
+      })
+
+      it('shows error for non-AbortError exceptions', async () => {
+        // GIVEN
+        setupStoreWithSession()
+
+        vi.mocked(api.streamDrillGeneration).mockImplementation(
+          async function* (): AsyncGenerator<DrillStreamEvent> {
+            throw new Error('Network error')
+            yield { type: 'status', message: '' } // unreachable
+          }
+        )
+
+        // WHEN
+        const wrapper = mount(PracticeView)
+        await flushPromises()
+
+        // THEN
+        expect(wrapper.find('.error-state').exists()).toBe(true)
+        expect(wrapper.find('.error-message').text()).toBe('Network error')
+      })
     })
   })
 })

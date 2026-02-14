@@ -301,9 +301,9 @@ class TestRoleValidation:
 class TestRoleDescriptionValidation:
     """Tests for role_description field validation."""
 
-    async def test_role_description_too_short_returns_error(self, client: AsyncClient):
-        """Role description shorter than 30 characters returns error."""
-        # GIVEN a role description that is too short
+    async def test_role_description_short_is_accepted(self, client: AsyncClient):
+        """Role description with 1+ characters is accepted (min is 1)."""
+        # GIVEN a short but valid role description
 
         # WHEN submitting the request
         response = await client.post(
@@ -311,12 +311,12 @@ class TestRoleDescriptionValidation:
             json={
                 "company_name": "Google",
                 "role": "backend_developer",
-                "role_description": "Too short",
+                "role_description": "Short",
             },
         )
 
-        # THEN a 422 validation error is returned
-        assert response.status_code == 422
+        # THEN the request succeeds
+        assert response.status_code == 200
 
     async def test_role_description_too_long_returns_error(self, client: AsyncClient):
         """Role description exceeding 8000 characters returns error."""

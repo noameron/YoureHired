@@ -1,17 +1,19 @@
 <script setup lang="ts">
-  import { ref, onMounted } from 'vue'
-  import { useRouter } from 'vue-router'
+  import { ref, watch, onMounted } from 'vue'
+  import { useRouter, useRoute } from 'vue-router'
   import { fetchRoles, submitUserSelection } from '@/services/api'
   import { useUserSelectionStore } from '@/stores/userSelection'
   import type { Role, UserSelectionError } from '@/types/api'
 
   const store = useUserSelectionStore()
   const router = useRouter()
+  const route = useRoute()
 
-  // Form state
-  const companyName = ref('')
-  const role = ref('')
-  const roleDescription = ref('')
+  // Form state — pre-fill from query params (e.g. after cancel redirect).
+  // No sanitization needed: form validation runs on submit, backend validates too.
+  const companyName = ref((route.query.company as string) || '')
+  const role = ref((route.query.role as string) || '')
+  const roleDescription = ref((route.query.description as string) || '')
 
   // UI state
   const roles = ref<Role[]>([])
@@ -27,10 +29,25 @@
     submit?: string
   }>({})
 
+  watch(companyName, () => {
+    delete errors.value.companyName
+    delete errors.value.submit
+  })
+
+  watch(role, () => {
+    delete errors.value.role
+    delete errors.value.submit
+  })
+
+  watch(roleDescription, () => {
+    delete errors.value.roleDescription
+    delete errors.value.submit
+  })
+
   // Validation constants (matching backend)
   const COMPANY_NAME_MIN = 2
   const COMPANY_NAME_MAX = 100
-  const ROLE_DESCRIPTION_MIN = 30
+  const ROLE_DESCRIPTION_MIN = 1
   const ROLE_DESCRIPTION_MAX = 8000
 
   onMounted(async () => {
@@ -94,6 +111,7 @@
         store.setSelection({
           companyName: result.data.company_name,
           role: result.data.role,
+          roleId: role.value,
           roleDescription: result.data.role_description,
           sessionId: result.data.session_id
         })

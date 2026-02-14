@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserSelectionStore } from '@/stores/userSelection'
-import { streamDrillGeneration } from '@/services/api'
+import { streamDrillGeneration, cancelGeneration as cancelGenerationApi } from '@/services/api'
 import type { Drill } from '@/services/types'
 import { useSolution } from '@/composables/usePractice'
 import { useAgentFlowchart } from '@/composables/useAgentFlowchart'
@@ -31,6 +31,8 @@ const {
   markAllComplete: markAllAgentsComplete
 } = useAgentFlowchart()
 
+let abortController: AbortController | null = null
+
 const currentStatus = ref<string>('Connecting...')
 const drill = ref<Drill | null>(null)
 const drillCandidates = ref<string[]>([])
@@ -49,17 +51,19 @@ async function startDrillGeneration() {
     return
   }
 
+  abortController?.abort()
+  abortController = new AbortController()
+
   error.value = null
   drill.value = null
   drillCandidates.value = []
   currentStatus.value = 'Starting...'
   resetAgents()
-  // Clear previous feedback when generating new drill
   clearFeedback()
   solution.value = ''
 
   try {
-    for await (const event of streamDrillGeneration(store.sessionId)) {
+    for await (const event of streamDrillGeneration(store.sessionId, abortController.signal)) {
       if (event.type === 'status') {
         currentStatus.value = event.message
         updateAgentFromStatus(event.message)
@@ -74,8 +78,26 @@ async function startDrillGeneration() {
       }
     }
   } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      return
+    }
     error.value = e instanceof Error ? e.message : 'Connection failed'
   }
+}
+
+async function cancelGeneration() {
+  abortController?.abort()
+  if (store.sessionId) {
+    cancelGenerationApi(store.sessionId).catch(() => {})
+  }
+  router.push({
+    path: '/',
+    query: {
+      company: store.companyName || undefined,
+      role: store.roleId || undefined,
+      description: store.roleDescription || undefined,
+    }
+  })
 }
 
 function retry() {
@@ -109,6 +131,15 @@ onMounted(() => {
 
         <!-- Agent Flowchart -->
         <AgentFlowchart :agents="researchAgents" />
+
+        <!-- Cancel button -->
+        <button
+          class="btn btn-secondary cancel-button"
+          data-testid="cancel-generation"
+          @click="cancelGeneration"
+        >
+          Cancel
+        </button>
 
         <!-- Transition arrow (appears when all research complete) -->
         <div

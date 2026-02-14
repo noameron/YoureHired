@@ -114,7 +114,7 @@ class DrillGenerationResponse(BaseModel):
 class CancelResponse(BaseModel):
     """Response for cancel endpoint."""
 
-    status: str
+    status: Literal["cancelled"] = "cancelled"
 
 
 class DrillGenerationErrorDetail(BaseModel):

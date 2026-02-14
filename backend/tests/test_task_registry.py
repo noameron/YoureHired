@@ -144,15 +144,16 @@ class TestTaskRegistry:
         registry.cancel_all("session-1")
 
     def test_cleanup_removes_session(self):
-        # GIVEN a registry with results
+        # GIVEN a registry with an incomplete result
         registry = TaskRegistry()
-        result = MagicMock()
+        result = MagicMock(is_complete=False)
         registry.register("session-1", result)
 
         # WHEN cleaning up
         registry.cleanup("session-1")
 
-        # THEN session is removed
+        # THEN incomplete result is cancelled and session is removed
+        result.cancel.assert_called_once_with(mode="immediate")
         assert "session-1" not in registry._active
 
     def test_cleanup_nonexistent_session(self):
@@ -162,6 +163,109 @@ class TestTaskRegistry:
         # WHEN cleaning up nonexistent session
         # THEN no error is raised
         registry.cleanup("session-1")
+
+    def test_cleanup_cancels_incomplete_results(self):
+        # GIVEN a registry with 2 incomplete results
+        registry = TaskRegistry()
+        result1 = MagicMock(is_complete=False)
+        result2 = MagicMock(is_complete=False)
+        registry.register("session-1", result1)
+        registry.register("session-1", result2)
+
+        # WHEN cleaning up
+        registry.cleanup("session-1")
+
+        # THEN both results are cancelled
+        result1.cancel.assert_called_once_with(mode="immediate")
+        result2.cancel.assert_called_once_with(mode="immediate")
+        # AND session is removed
+        assert "session-1" not in registry._active
+
+    def test_cleanup_skips_complete_results(self):
+        # GIVEN a registry with 1 complete and 1 incomplete result
+        registry = TaskRegistry()
+        result_complete = MagicMock(is_complete=True)
+        result_incomplete = MagicMock(is_complete=False)
+        registry.register("session-1", result_complete)
+        registry.register("session-1", result_incomplete)
+
+        # WHEN cleaning up
+        registry.cleanup("session-1")
+
+        # THEN only incomplete result is cancelled
+        result_complete.cancel.assert_not_called()
+        result_incomplete.cancel.assert_called_once_with(mode="immediate")
+        # AND session is removed
+        assert "session-1" not in registry._active
+
+    def test_register_after_cancel_all_immediately_cancels(self):
+        # GIVEN a session that has been cancelled
+        registry = TaskRegistry()
+        result1 = MagicMock(is_complete=False)
+        registry.register("session-1", result1)
+        registry.cancel_all("session-1")
+
+        # WHEN registering a new result after cancellation
+        result2 = MagicMock(is_complete=False)
+        registry.register("session-1", result2)
+
+        # THEN the new result is immediately cancelled
+        result2.cancel.assert_called_once_with(mode="immediate")
+        # AND the result is not left in _active (cleaned up)
+        active_results = registry._active.get("session-1", [])
+        assert "session-1" not in registry._active or result2 not in active_results
+
+    def test_cleanup_clears_cancelled_flag(self):
+        # GIVEN a session with a result that gets cancelled
+        registry = TaskRegistry()
+        result_initial = MagicMock(is_complete=False)
+        registry.register("session-1", result_initial)
+        registry.cancel_all("session-1")
+
+        # WHEN cleanup is called to clear the cancelled flag
+        registry.cleanup("session-1")
+
+        # THEN a newly registered result is NOT cancelled
+        result_new = MagicMock(is_complete=False)
+        registry.register("session-1", result_new)
+
+        # AND the new result was not cancelled
+        result_new.cancel.assert_not_called()
+        # AND the new result is in _active
+        assert "session-1" in registry._active
+        assert result_new in registry._active["session-1"]
+
+    def test_cancel_then_register_then_cleanup_full_cycle(self):
+        # GIVEN a registry with an initial result
+        registry = TaskRegistry()
+        result1 = MagicMock(is_complete=False)
+        registry.register("session-1", result1)
+
+        # WHEN cancelling all (result1 cancelled, session marked cancelled)
+        registry.cancel_all("session-1")
+
+        # THEN result1 is cancelled
+        result1.cancel.assert_called_once_with(mode="immediate")
+
+        # WHEN registering result2 (should be immediately cancelled)
+        result2 = MagicMock(is_complete=False)
+        registry.register("session-1", result2)
+
+        # THEN result2 is immediately cancelled
+        result2.cancel.assert_called_once_with(mode="immediate")
+
+        # WHEN calling cleanup (clears cancelled flag)
+        registry.cleanup("session-1")
+
+        # WHEN registering result3 (should NOT be cancelled)
+        result3 = MagicMock(is_complete=False)
+        registry.register("session-1", result3)
+
+        # THEN result3 is NOT cancelled
+        result3.cancel.assert_not_called()
+        # AND result3 is in _active
+        assert "session-1" in registry._active
+        assert result3 in registry._active["session-1"]
 
     def test_thread_safety_concurrent_register(self):
         # GIVEN a registry

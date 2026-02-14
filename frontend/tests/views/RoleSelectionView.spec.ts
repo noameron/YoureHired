@@ -3,8 +3,9 @@ import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import type { ComponentPublicInstance } from 'vue'
 import { setActivePinia, createPinia } from 'pinia'
 import RoleSelectionView from '@/views/RoleSelectionView.vue'
+import { useUserSelectionStore } from '@/stores/userSelection'
 import * as api from '@/services/api'
-import type { RolesResponse, UserSelectionResponse } from '@/types/api'
+import type { RolesResponse, UserSelectionResponse, UserSelectionError } from '@/types/api'
 
 type TestWrapper = VueWrapper<ComponentPublicInstance>
 
@@ -13,9 +14,13 @@ vi.mock('@/services/api')
 
 // Mock vue-router
 const mockPush = vi.fn()
+let mockRouteQuery: Record<string, string> = {}
 vi.mock('vue-router', () => ({
   useRouter: () => ({
     push: mockPush
+  }),
+  useRoute: () => ({
+    query: mockRouteQuery
   })
 }))
 
@@ -73,6 +78,7 @@ describe('RoleSelectionView', () => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     mockPush.mockClear()
+    mockRouteQuery = {}
     vi.mocked(api.fetchRoles).mockResolvedValue(mockRoles)
     vi.mocked(api.submitUserSelection).mockResolvedValue(mockSuccessResponse)
   })
@@ -187,15 +193,6 @@ describe('RoleSelectionView', () => {
           await wrapper.find('select[name="role"]').setValue('backend_developer')
         },
         errorTestId: 'error-companyName'
-      },
-      {
-        description: 'role description too short',
-        setup: async (wrapper: TestWrapper) => {
-          await wrapper.find('input[name="companyName"]').setValue('Test Corp')
-          await wrapper.find('select[name="role"]').setValue('backend_developer')
-          await wrapper.find('textarea[name="roleDescription"]').setValue('Short')
-        },
-        errorTestId: 'error-roleDescription'
       }
     ])('shows error when $description', async ({ setup, errorTestId }) => {
       // GIVEN - the component is mounted
@@ -274,6 +271,20 @@ describe('RoleSelectionView', () => {
       expect(mockPush).toHaveBeenCalledWith('/practice')
     })
 
+    it('stores roleId in addition to role label on successful submission', async () => {
+      // GIVEN - the component is mounted with valid form data
+      const store = useUserSelectionStore()
+      const wrapper = await mountComponent()
+      await fillFormData(wrapper, { companyName: 'Test Corp', role: 'backend_developer' })
+
+      // WHEN - form is submitted successfully
+      await submitForm(wrapper)
+
+      // THEN - store contains both roleId and role label
+      expect(store.roleId).toBe('backend_developer')
+      expect(store.role).toBe('Backend Developer')
+    })
+
     it('disables submit button while submitting', async () => {
       // GIVEN - a delayed submission promise
       let resolvePromise: (value: UserSelectionResponse) => void
@@ -297,6 +308,224 @@ describe('RoleSelectionView', () => {
       await flushPromises()
 
       // THEN - submission completes (button re-enabled or form replaced)
+    })
+  })
+
+  describe('form pre-fill from query params', () => {
+    it('pre-fills all fields from query params', async () => {
+      // GIVEN - query params contain all form values
+      mockRouteQuery = {
+        company: 'Acme Corp',
+        role: 'frontend_developer',
+        description: 'Build React apps with TypeScript and modern tooling'
+      }
+
+      // WHEN - component mounts
+      const wrapper = await mountComponent()
+
+      // THEN - form fields are populated from query params
+      expect((wrapper.find('input[name="companyName"]').element as HTMLInputElement).value).toBe(
+        'Acme Corp'
+      )
+      expect((wrapper.find('select[name="role"]').element as HTMLSelectElement).value).toBe(
+        'frontend_developer'
+      )
+      expect(
+        (wrapper.find('textarea[name="roleDescription"]').element as HTMLTextAreaElement).value
+      ).toBe('Build React apps with TypeScript and modern tooling')
+    })
+
+    it('shows empty fields when no query params', async () => {
+      // GIVEN - no query params (empty object)
+      mockRouteQuery = {}
+
+      // WHEN - component mounts
+      const wrapper = await mountComponent()
+
+      // THEN - form fields are empty
+      expect((wrapper.find('input[name="companyName"]').element as HTMLInputElement).value).toBe('')
+      expect((wrapper.find('select[name="role"]').element as HTMLSelectElement).value).toBe('')
+      expect(
+        (wrapper.find('textarea[name="roleDescription"]').element as HTMLTextAreaElement).value
+      ).toBe('')
+    })
+
+    it('pre-fills partial query params', async () => {
+      // GIVEN - query params contain only company name
+      mockRouteQuery = {
+        company: 'Partial Corp'
+      }
+
+      // WHEN - component mounts
+      const wrapper = await mountComponent()
+
+      // THEN - only company field is populated, others are empty
+      expect((wrapper.find('input[name="companyName"]').element as HTMLInputElement).value).toBe(
+        'Partial Corp'
+      )
+      expect((wrapper.find('select[name="role"]').element as HTMLSelectElement).value).toBe('')
+      expect(
+        (wrapper.find('textarea[name="roleDescription"]').element as HTMLTextAreaElement).value
+      ).toBe('')
+    })
+
+    it('query params override store values', async () => {
+      // GIVEN - store has values
+      const store = useUserSelectionStore()
+      store.setSelection({
+        companyName: 'Store Corp',
+        role: 'fullstack_developer',
+        roleDescription: 'Store description',
+        sessionId: 'session-xyz',
+        roleId: 'fullstack_developer'
+      })
+
+      // AND - query params have different values
+      mockRouteQuery = {
+        company: 'Query Corp',
+        role: 'backend_developer'
+      }
+
+      // WHEN - component mounts
+      const wrapper = await mountComponent()
+
+      // THEN - form shows query param values, not store values
+      expect((wrapper.find('input[name="companyName"]').element as HTMLInputElement).value).toBe(
+        'Query Corp'
+      )
+      expect((wrapper.find('select[name="role"]').element as HTMLSelectElement).value).toBe(
+        'backend_developer'
+      )
+      // Description is empty because it's not in query params
+      expect(
+        (wrapper.find('textarea[name="roleDescription"]').element as HTMLTextAreaElement).value
+      ).toBe('')
+    })
+
+    it('pre-fills role select with role ID from query params after cancel', async () => {
+      // GIVEN - user returns from cancel with role ID in query params
+      mockRouteQuery = {
+        company: 'Acme Corp',
+        role: 'frontend_developer',
+        description: 'Build React apps'
+      }
+
+      // WHEN - component mounts and roles load
+      const wrapper = await mountComponent()
+
+      // THEN - role select is pre-filled with the role ID value
+      expect((wrapper.find('select[name="role"]').element as HTMLSelectElement).value).toBe(
+        'frontend_developer'
+      )
+    })
+  })
+
+  describe('reactive error clearing', () => {
+    it('clears company name error when user types in company name field', async () => {
+      // GIVEN - the component is mounted
+      const wrapper = await mountComponent()
+
+      // WHEN - form is submitted with empty company name to trigger error
+      await fillFormData(wrapper, { role: 'backend_developer' })
+      await submitForm(wrapper)
+
+      // THEN - company name error is displayed
+      expect(wrapper.find('[data-testid="error-companyName"]').exists()).toBe(true)
+
+      // WHEN - user types in company name field
+      await fillFormData(wrapper, { companyName: 'Test Corp' })
+
+      // THEN - company name error is cleared
+      expect(wrapper.find('[data-testid="error-companyName"]').exists()).toBe(false)
+    })
+
+    it('clears role error when user selects a role', async () => {
+      // GIVEN - the component is mounted
+      const wrapper = await mountComponent()
+
+      // WHEN - form is submitted with no role selected to trigger error
+      await fillFormData(wrapper, { companyName: 'Test Corp' })
+      await submitForm(wrapper)
+
+      // THEN - role error is displayed
+      expect(wrapper.find('[data-testid="error-role"]').exists()).toBe(true)
+
+      // WHEN - user selects a role
+      await fillFormData(wrapper, { role: 'backend_developer' })
+
+      // THEN - role error is cleared
+      expect(wrapper.find('[data-testid="error-role"]').exists()).toBe(false)
+    })
+
+    it('clears role description error when user types in description field', async () => {
+      // GIVEN - the component is mounted
+      const wrapper = await mountComponent()
+
+      // WHEN - form is submitted with too-long description to trigger error
+      await fillFormData(wrapper, {
+        companyName: 'Test Corp',
+        role: 'backend_developer',
+        roleDescription: 'A'.repeat(8001)
+      })
+      await submitForm(wrapper)
+
+      // THEN - role description error is displayed
+      expect(wrapper.find('[data-testid="error-roleDescription"]').exists()).toBe(true)
+
+      // WHEN - user changes the description to a valid value
+      await fillFormData(wrapper, {
+        roleDescription: 'A valid role description.'
+      })
+
+      // THEN - role description error is cleared
+      expect(wrapper.find('[data-testid="error-roleDescription"]').exists()).toBe(false)
+    })
+
+    it('clears submit error when any field changes', async () => {
+      // GIVEN - the component is mounted and API will return an error
+      const mockErrorResponse: UserSelectionError = {
+        success: false,
+        error: {
+          code: 'SERVER_ERROR',
+          message: 'Server error occurred',
+          details: {}
+        }
+      }
+      vi.mocked(api.submitUserSelection).mockResolvedValue(mockErrorResponse)
+
+      const wrapper = await mountComponent()
+
+      // WHEN - form is submitted to get a submit error
+      await fillFormData(wrapper, { companyName: 'Test Corp', role: 'backend_developer' })
+      await submitForm(wrapper)
+
+      // THEN - submit error is displayed
+      expect(wrapper.find('.submit-error').exists()).toBe(true)
+
+      // WHEN - user changes company name value
+      await fillFormData(wrapper, { companyName: 'New Corp' })
+
+      // THEN - submit error is cleared
+      expect(wrapper.find('.submit-error').exists()).toBe(false)
+    })
+
+    it('does not clear other field errors when only one field changes', async () => {
+      // GIVEN - the component is mounted
+      const wrapper = await mountComponent()
+
+      // WHEN - form is submitted with BOTH company name empty AND role empty
+      await submitForm(wrapper)
+
+      // THEN - both errors are displayed
+      expect(wrapper.find('[data-testid="error-companyName"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="error-role"]').exists()).toBe(true)
+
+      // WHEN - user types in company name
+      await fillFormData(wrapper, { companyName: 'Test Corp' })
+
+      // THEN - company name error is cleared but role error remains
+      expect(wrapper.find('[data-testid="error-companyName"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="error-role"]').exists()).toBe(true)
     })
   })
 })

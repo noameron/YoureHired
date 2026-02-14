@@ -12,7 +12,8 @@ describe('userSelection store', () => {
       { property: 'companyName', expected: '' },
       { property: 'role', expected: '' },
       { property: 'roleDescription', expected: null },
-      { property: 'sessionId', expected: null }
+      { property: 'sessionId', expected: null },
+      { property: 'roleId', expected: '' }
     ])('has $property initialized to $expected', ({ property, expected }) => {
       // GIVEN - a fresh store instance
       const store = useUserSelectionStore()
@@ -35,7 +36,8 @@ describe('userSelection store', () => {
         companyName: 'Test Corp',
         role: 'backend_developer',
         roleDescription: 'Senior position focusing on APIs',
-        sessionId: 'session-uuid-12345'
+        sessionId: 'session-uuid-12345',
+        roleId: 'backend_developer'
       })
 
       // THEN - all properties are updated correctly
@@ -43,6 +45,25 @@ describe('userSelection store', () => {
       expect(store.role).toBe('backend_developer')
       expect(store.roleDescription).toBe('Senior position focusing on APIs')
       expect(store.sessionId).toBe('session-uuid-12345')
+      expect(store.roleId).toBe('backend_developer')
+    })
+
+    it('stores roleId separately from role label', () => {
+      // GIVEN - a fresh store instance
+      const store = useUserSelectionStore()
+
+      // WHEN - setting selection with role ID and role label
+      store.setSelection({
+        companyName: 'Test Corp',
+        role: 'Backend Developer',
+        roleDescription: null,
+        sessionId: 'session-123',
+        roleId: 'backend_developer'
+      })
+
+      // THEN - roleId stores the ID while role stores the label
+      expect(store.roleId).toBe('backend_developer')
+      expect(store.role).toBe('Backend Developer')
     })
 
     it.each([
@@ -74,7 +95,8 @@ describe('userSelection store', () => {
         companyName: 'Test Corp',
         role: 'backend_developer',
         roleDescription: 'Description',
-        sessionId: 'abc-123'
+        sessionId: 'abc-123',
+        roleId: 'backend_developer'
       })
 
       // WHEN - clearing the selection
@@ -85,6 +107,7 @@ describe('userSelection store', () => {
       expect(store.role).toBe('')
       expect(store.roleDescription).toBeNull()
       expect(store.sessionId).toBeNull()
+      expect(store.roleId).toBe('')
     })
   })
 
@@ -104,7 +127,8 @@ describe('userSelection store', () => {
             companyName: 'Test Corp',
             role: 'backend_developer',
             roleDescription: null,
-            sessionId: 'abc-123'
+            sessionId: 'abc-123',
+            roleId: 'backend_developer'
           })
         },
         expected: true
@@ -116,7 +140,8 @@ describe('userSelection store', () => {
             companyName: 'Test Corp',
             role: 'backend_developer',
             roleDescription: null,
-            sessionId: 'abc-123'
+            sessionId: 'abc-123',
+            roleId: 'backend_developer'
           })
           store.clearSelection()
         },

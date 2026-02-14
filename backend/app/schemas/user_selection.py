@@ -13,7 +13,7 @@ class UserSelectionRequest(BaseModel):
     role: str = Field(..., description="Role ID from predefined roles")
     role_description: str | None = Field(
         None,
-        description="Optional role description (30-8000 characters if provided)",
+        description="Optional role description (1-8000 characters if provided)",
     )
 
     @field_validator("company_name")
@@ -57,8 +57,8 @@ class UserSelectionRequest(BaseModel):
         v = v.strip()
         if not v:
             return None
-        if len(v) < 10:
-            raise ValueError("Role description must be at least 10 characters")
+        if len(v) < 1:
+            raise ValueError("Role description must be at least 1 character")
         if len(v) > 8000:
             raise ValueError("Role description must be at most 8000 characters")
         return v
