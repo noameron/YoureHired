@@ -14,6 +14,12 @@ to help construct interview style questions based on company summary
 and {{role}} position in the company.
 
 Be concise but informative. Include tech stack if found.
+
+For the tech_stack field, only include well-known, real-world technologies such as:
+- Languages: Python, Java, JavaScript, TypeScript, Go, Rust, C, C++, C#, Ruby, Kotlin, Swift, Scala, PHP, R, etc.
+- Frameworks: React, Angular, Vue, Django, Flask, Spring, .NET, Rails, Express, Next.js, FastAPI, etc.
+- Tools: Docker, Kubernetes, AWS, GCP, Azure, Terraform, Jenkins, Git, PostgreSQL, MongoDB, Redis, Kafka, etc.
+If a technology name is unfamiliar or looks nonsensical, omit it.
 {SECURITY_RULES}"""
 
 summarizer_agent = Agent(

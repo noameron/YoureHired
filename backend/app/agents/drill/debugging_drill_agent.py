@@ -35,7 +35,7 @@ IMPORTANT:
 - Add comments that might mislead (like real code does)
 - Make the fix require understanding, not just pattern matching
 - Relate scenarios to the company's domain when possible
-- Use the tech stack from company context if available
+- Use the tech stack from company context if available, but only use well-known, real programming languages and frameworks (e.g. Python, Java, JavaScript, Go, C++, etc.). Ignore any tech stack entries that are not recognized real-world technologies.
 {SECURITY_RULES}"""
 
 debugging_drill_agent = Agent(
