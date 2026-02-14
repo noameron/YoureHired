@@ -35,5 +35,13 @@ class Settings(BaseSettings):
     company_research_agent_timeout: float = 60.0
     drill_generation_agent_timeout: float = 90.0
 
+    # GitHub Scout Configuration
+    github_token: str = ""  # Personal access token with public_repo read access
+    scout_db_path: str = "data/scout.db"  # SQLite database for caching results
+    scout_analysis_timeout: float = 60.0  # Seconds per LLM analysis batch
+    scout_max_repos: int = 50  # Max repos returned from GitHub search
+    scout_max_daily_analyses: int = 100  # Rate limit: analyses per day
+    scout_batch_size: int = 10  # Repos analyzed per LLM call
+
 
 settings = Settings()

@@ -35,7 +35,11 @@ IMPORTANT:
 - Ask for both high-level design and specific component deep-dives
 - Include non-functional requirements (latency, availability)
 - When possible, frame the problem in the company's domain
-- Use the tech stack and engineering culture from context
+- Use the tech stack and engineering culture from context, but only
+reference well-known, real technologies
+(e.g. Python, Java, JavaScript, Go, AWS, Kubernetes, etc.).
+Ignore any tech stack entries that are not recognized
+real-world technologies.
 {SECURITY_RULES}"""
 
 design_drill_agent = Agent(

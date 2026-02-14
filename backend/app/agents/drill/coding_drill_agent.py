@@ -32,7 +32,11 @@ IMPORTANT:
 - Include realistic constraints and edge cases
 - Provide meaningful starter code when appropriate
 - Connect the problem context to the target company's domain when possible
-- Use the tech stack from company context if available
+- Use the tech stack from company context if available, but only use
+well-known, real programming languages and frameworks
+(e.g. Python, Java, JavaScript, Go, C++, etc.).
+Ignore any tech stack entries that are not recognized
+real-world technologies.
 {SECURITY_RULES}"""
 
 coding_drill_agent = Agent(
