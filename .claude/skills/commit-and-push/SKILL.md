@@ -43,6 +43,7 @@ description: >
    Rules:
    - First line is the summary paragraph (can wrap, no length limit).
    - Blank line, then bullet list of changed files using `* ` prefix (asterisk + space).
+   - **Files must be listed in alphabetical order** (a commit hook enforces this).
    - **No header** before the file list — just the `* file` lines directly.
    - **NEVER** use `- ` (dash) bullets — always use `* ` (asterisk).
    - **NEVER** append a `Co-Authored-By` line or any trailer.
