@@ -56,21 +56,21 @@ class RepoMetadata(BaseModel):
     description: str | None = None
     primary_language: str | None = None
     languages: list[str] = Field(default_factory=list)
-    star_count: int = 0
-    fork_count: int = 0
-    open_issue_count: int = 0
+    star_count: int = Field(default=0, ge=0)
+    fork_count: int = Field(default=0, ge=0)
+    open_issue_count: int = Field(default=0, ge=0)
     topics: list[str] = Field(default_factory=list)
     license: str | None = None
     pushed_at: str | None = None
     created_at: str | None = None
-    good_first_issue_count: int = 0
-    help_wanted_count: int = 0
+    good_first_issue_count: int = Field(default=0, ge=0)
+    help_wanted_count: int = Field(default=0, ge=0)
 
 
 class AnalysisResult(BaseModel):
     """LLM analysis result for a single repository."""
 
-    repo: str
+    repo: str = Field(pattern=r"^[^/]+/[^/]+$")
     fit_score: float = Field(ge=0.0, le=10.0)
     reason: str
     contributions: list[str] = Field(default_factory=list)
