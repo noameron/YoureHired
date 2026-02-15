@@ -77,6 +77,17 @@ class GitHubGraphQLClient:
         if variables:
             payload["variables"] = variables
 
+        response = await self._retry_request(payload, headers)
+        data = response.json()
+        result: dict[str, Any] = data.get("data", data)
+        return result
+
+    async def _retry_request(
+        self,
+        payload: dict[str, object],
+        headers: dict[str, str],
+    ) -> httpx.Response:
+        """Execute an HTTP POST with retry for 502/503 errors."""
         last_exc: Exception | None = None
         for attempt in range(self.MAX_RETRIES):
             async with httpx.AsyncClient(timeout=30.0) as http:
@@ -94,22 +105,13 @@ class GitHubGraphQLClient:
                     response=response,
                 )
                 if attempt < self.MAX_RETRIES - 1:
-                    delay = self.RETRY_DELAYS[attempt]
-                    await _sleep_with_jitter(delay)
+                    await _sleep_with_jitter(self.RETRY_DELAYS[attempt])
                     continue
                 raise last_exc
 
             response.raise_for_status()
-            data = response.json()
-            result: dict[str, Any] = data.get("data", data)
-            return result
+            return response
 
-        # This line is logically unreachable because:
-        # - 401 raises immediately without retry
-        # - 502/503 set last_exc and either retry or raise
-        # - Any other error raises via raise_for_status()
-        # - Success returns via the loop body
-        # However, we assert for type safety
         assert last_exc is not None, "Retry loop completed without setting exception"
         raise last_exc
 

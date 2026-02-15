@@ -37,6 +37,40 @@ def _sql(name: str) -> str:
     return (_QUERIES_DIR / f"{name}.sql").read_text().strip()
 
 
+def _row_to_analysis_result(row: aiosqlite.Row) -> AnalysisResult:
+    """Convert a get_analysis_with_repos row to AnalysisResult."""
+    return AnalysisResult(
+        repo=f"{row[6]}/{row[7]}",
+        fit_score=row[0],
+        reason=row[1],
+        contributions=json.loads(row[2]) if row[2] else [],
+        reject=bool(row[3]),
+        reject_reason=row[4],
+    )
+
+
+def _row_to_repo_metadata(row: aiosqlite.Row) -> RepoMetadata:
+    """Convert a get_analysis_with_repos row to RepoMetadata."""
+    return RepoMetadata(
+        github_id=row[5],
+        owner=row[6],
+        name=row[7],
+        url=row[8],
+        description=row[9],
+        primary_language=row[10],
+        languages=json.loads(row[11]) if row[11] else [],
+        star_count=row[12],
+        fork_count=row[13],
+        open_issue_count=row[14],
+        topics=json.loads(row[15]) if row[15] else [],
+        license=row[16],
+        pushed_at=row[17],
+        created_at=row[18],
+        good_first_issue_count=row[19],
+        help_wanted_count=row[20],
+    )
+
+
 class GitHubReposDB:
     """Async SQLite persistence for GitHub Scout data."""
 
@@ -210,30 +244,30 @@ class GitHubReposDB:
         if not repos:
             return
         now = datetime.now(tz=UTC).isoformat()
+        params = [
+            (
+                repo.github_id,
+                repo.owner,
+                repo.name,
+                repo.url,
+                repo.description,
+                repo.primary_language,
+                json.dumps(repo.languages),
+                repo.star_count,
+                repo.fork_count,
+                repo.open_issue_count,
+                json.dumps(repo.topics),
+                repo.license,
+                repo.pushed_at,
+                repo.created_at,
+                repo.good_first_issue_count,
+                repo.help_wanted_count,
+                now,
+            )
+            for repo in repos
+        ]
         async with self._connect() as db:
-            for repo in repos:
-                await db.execute(
-                    _sql("upsert_repository"),
-                    (
-                        repo.github_id,
-                        repo.owner,
-                        repo.name,
-                        repo.url,
-                        repo.description,
-                        repo.primary_language,
-                        json.dumps(repo.languages),
-                        repo.star_count,
-                        repo.fork_count,
-                        repo.open_issue_count,
-                        json.dumps(repo.topics),
-                        repo.license,
-                        repo.pushed_at,
-                        repo.created_at,
-                        repo.good_first_issue_count,
-                        repo.help_wanted_count,
-                        now,
-                    ),
-                )
+            await db.executemany(_sql("upsert_repository"), params)
             await db.commit()
 
     async def save_analysis_results(
@@ -243,29 +277,24 @@ class GitHubReposDB:
         if not results:
             return
         now = datetime.now(tz=UTC).isoformat()
+        params = []
+        for result in results:
+            owner, name = result.repo.split("/", 1)
+            params.append((
+                run_id,
+                result.fit_score,
+                result.reason,
+                json.dumps(result.contributions),
+                1 if result.reject else 0,
+                result.reject_reason,
+                now,
+                owner,
+                name,
+            ))
         async with self._connect() as db:
-            for result in results:
-                owner, name = result.repo.split("/", 1)
-                cursor = await db.execute(
-                    _sql("find_repo_by_owner_name"),
-                    (owner, name),
-                )
-                row = await cursor.fetchone()
-                if row is None:
-                    continue
-                await db.execute(
-                    _sql("insert_analysis_result"),
-                    (
-                        run_id,
-                        row[0],
-                        result.fit_score,
-                        result.reason,
-                        json.dumps(result.contributions),
-                        1 if result.reject else 0,
-                        result.reject_reason,
-                        now,
-                    ),
-                )
+            await db.executemany(
+                _sql("insert_analysis_with_lookup"), params
+            )
             await db.commit()
 
     async def get_search_results(
@@ -285,45 +314,8 @@ class GitHubReposDB:
                 (run_id,),
             )
             rows = await cursor.fetchall()
-        results = []
-        repos = []
-        for row in rows:
-            results.append(
-                AnalysisResult(
-                    repo=f"{row[6]}/{row[7]}",
-                    fit_score=row[0],
-                    reason=row[1],
-                    contributions=(
-                        json.loads(row[2]) if row[2] else []
-                    ),
-                    reject=bool(row[3]),
-                    reject_reason=row[4],
-                )
-            )
-            repos.append(
-                RepoMetadata(
-                    github_id=row[5],
-                    owner=row[6],
-                    name=row[7],
-                    url=row[8],
-                    description=row[9],
-                    primary_language=row[10],
-                    languages=(
-                        json.loads(row[11]) if row[11] else []
-                    ),
-                    star_count=row[12],
-                    fork_count=row[13],
-                    open_issue_count=row[14],
-                    topics=(
-                        json.loads(row[15]) if row[15] else []
-                    ),
-                    license=row[16],
-                    pushed_at=row[17],
-                    created_at=row[18],
-                    good_first_issue_count=row[19],
-                    help_wanted_count=row[20],
-                )
-            )
+        results = [_row_to_analysis_result(r) for r in rows]
+        repos = [_row_to_repo_metadata(r) for r in rows]
         return ScoutSearchResult(
             run_id=run_row[0],
             status=run_row[1],

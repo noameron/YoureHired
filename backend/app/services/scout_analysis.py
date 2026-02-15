@@ -16,17 +16,35 @@ _README_MAX_CHARS = 16_000
 logger = logging.getLogger(__name__)
 
 
+def _format_repo_section(repo: RepoMetadata, readme: str | None) -> str:
+    """Format a single repo + readme into a text block for the analysis prompt."""
+    lines = [
+        f"--- {repo.owner}/{repo.name} ---",
+        f"URL: {repo.url}",
+        f"Description: {repo.description or 'N/A'}",
+        f"Primary Language: {repo.primary_language or 'N/A'}",
+        f"Languages: {', '.join(repo.languages)}",
+        f"Stars: {repo.star_count}",
+        f"Open Issues: {repo.open_issue_count}",
+        f"Good First Issues: {repo.good_first_issue_count}",
+        f"Help Wanted: {repo.help_wanted_count}",
+        f"Topics: {', '.join(repo.topics)}",
+        f"License: {repo.license or 'N/A'}",
+        f"Last Pushed: {repo.pushed_at or 'N/A'}",
+    ]
+    if readme:
+        lines.append(f"README (excerpt):\n{readme[:_README_MAX_CHARS]}")
+    else:
+        lines.append("README: Not available")
+    return "\n".join(lines)
+
+
 def _build_batch_input(
     profile: DeveloperProfile,
     repos: list[RepoMetadata],
     readmes: list[str | None],
 ) -> str:
     """Build the text prompt for a batch of repos.
-
-    Args:
-        profile: Developer profile with languages, topics, skill level, goals
-        repos: List of repository metadata
-        readmes: List of README content (must match length of repos)
 
     Raises:
         ValueError: If repos and readmes have different lengths
@@ -36,7 +54,7 @@ def _build_batch_input(
             f"repos and readmes must have same length: {len(repos)} vs {len(readmes)}"
         )
 
-    lines = [
+    header = "\n".join([
         "DEVELOPER PROFILE:",
         f"Languages: {', '.join(profile.languages)}",
         f"Topics: {', '.join(profile.topics)}",
@@ -44,29 +62,10 @@ def _build_batch_input(
         f"Goals: {profile.goals}",
         "",
         "REPOSITORIES TO ANALYZE:",
-    ]
+    ])
 
-    for i, repo in enumerate(repos):
-        readme = readmes[i]
-        lines.append("")
-        lines.append(f"--- {repo.owner}/{repo.name} ---")
-        lines.append(f"URL: {repo.url}")
-        lines.append(f"Description: {repo.description or 'N/A'}")
-        lines.append(f"Primary Language: {repo.primary_language or 'N/A'}")
-        lines.append(f"Languages: {', '.join(repo.languages)}")
-        lines.append(f"Stars: {repo.star_count}")
-        lines.append(f"Open Issues: {repo.open_issue_count}")
-        lines.append(f"Good First Issues: {repo.good_first_issue_count}")
-        lines.append(f"Help Wanted: {repo.help_wanted_count}")
-        lines.append(f"Topics: {', '.join(repo.topics)}")
-        lines.append(f"License: {repo.license or 'N/A'}")
-        lines.append(f"Last Pushed: {repo.pushed_at or 'N/A'}")
-        if readme:
-            lines.append(f"README (excerpt):\n{readme[:_README_MAX_CHARS]}")
-        else:
-            lines.append("README: Not available")
-
-    return "\n".join(lines)
+    sections = [_format_repo_section(repo, readme) for repo, readme in zip(repos, readmes)]
+    return header + "\n\n" + "\n\n".join(sections)
 
 
 def batch_repos(repos: list[RepoMetadata], batch_size: int) -> list[list[RepoMetadata]]:
