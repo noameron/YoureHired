@@ -64,7 +64,6 @@ class GitHubReposDB:
 
     async def save_profile(
         self, profile: DeveloperProfile
-<<<<<<< HEAD
     ) -> Literal["default"]:
         await self._ensure_init()
         now = datetime.now(tz=UTC).isoformat()
