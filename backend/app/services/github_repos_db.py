@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from functools import cache
 from pathlib import Path
+from typing import Literal
 
 import aiosqlite
 
@@ -63,7 +64,7 @@ class GitHubReposDB:
 
     async def save_profile(
         self, profile: DeveloperProfile
-    ) -> str:
+    ) -> Literal["default"]:
         await self._ensure_init()
         now = datetime.now(tz=UTC).isoformat()
         async with self._connect() as db:

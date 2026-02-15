@@ -5,6 +5,12 @@ from typing import Literal, Self
 from pydantic import BaseModel, Field, model_validator
 
 
+class ProfileIdResponse(BaseModel):
+    """Response after saving a developer profile."""
+
+    id: str
+
+
 class DeveloperProfile(BaseModel):
     """Developer profile for repository matching."""
 
