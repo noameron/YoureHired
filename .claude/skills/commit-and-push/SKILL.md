@@ -36,15 +36,15 @@ description: >
    <One paragraph: what changed and why. Be specific. Mention the feature,
    bug, or motivation. Do not start with "This commit…".>
 
-   Files changed:
-   - path/to/file1.ts
-   - path/to/file2.vue
-   - ...
+   * path/to/file1.ts
+   * path/to/file2.vue
    ```
 
    Rules:
    - First line is the summary paragraph (can wrap, no length limit).
-   - Blank line, then `Files changed:` header, then bullet list.
+   - Blank line, then bullet list of changed files using `* ` prefix (asterisk + space).
+   - **No header** before the file list — just the `* file` lines directly.
+   - **NEVER** use `- ` (dash) bullets — always use `* ` (asterisk).
    - **NEVER** append a `Co-Authored-By` line or any trailer.
 
 5. **Commit** using a HEREDOC for the message:
@@ -53,9 +53,8 @@ description: >
    git commit -m "$(cat <<'EOF'
    <paragraph>
 
-   Files changed:
-   - file1
-   - file2
+   * file1
+   * file2
    EOF
    )"
    ```
