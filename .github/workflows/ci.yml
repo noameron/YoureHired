@@ -34,15 +34,6 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      - name: Create .env file
-        run: |
-          cat > ../.env << 'EOF'
-          OPENAI_API_KEY=sk-test-fake-key-for-ci
-          DEBUG=false
-          CORS_ORIGINS=["http://localhost:3000"]
-          OPENAI_MODEL=gpt-4o-mini
-          EOF
-
       - name: Lint
         run: uv run ruff check .
 
