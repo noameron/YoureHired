@@ -5,6 +5,12 @@ from typing import Literal, Self
 from pydantic import BaseModel, Field, model_validator
 
 
+class ProfileIdResponse(BaseModel):
+    """Response after saving a developer profile."""
+
+    id: str
+
+
 class DeveloperProfile(BaseModel):
     """Developer profile for repository matching."""
 
@@ -50,21 +56,21 @@ class RepoMetadata(BaseModel):
     description: str | None = None
     primary_language: str | None = None
     languages: list[str] = Field(default_factory=list)
-    star_count: int = 0
-    fork_count: int = 0
-    open_issue_count: int = 0
+    star_count: int = Field(default=0, ge=0)
+    fork_count: int = Field(default=0, ge=0)
+    open_issue_count: int = Field(default=0, ge=0)
     topics: list[str] = Field(default_factory=list)
     license: str | None = None
     pushed_at: str | None = None
     created_at: str | None = None
-    good_first_issue_count: int = 0
-    help_wanted_count: int = 0
+    good_first_issue_count: int = Field(default=0, ge=0)
+    help_wanted_count: int = Field(default=0, ge=0)
 
 
 class AnalysisResult(BaseModel):
     """LLM analysis result for a single repository."""
 
-    repo: str
+    repo: str = Field(pattern=r"^[^/]+/[^/]+$")
     fit_score: float = Field(ge=0.0, le=10.0)
     reason: str
     contributions: list[str] = Field(default_factory=list)
@@ -72,18 +78,21 @@ class AnalysisResult(BaseModel):
     reject_reason: str | None = None
 
 
+SearchRunStatus = Literal["running", "completed", "failed", "cancelled", "partial"]
+
+
 class SearchRunResponse(BaseModel):
     """Response when starting a scout search run."""
 
     run_id: str
-    status: Literal["running", "completed", "failed", "cancelled", "partial"]
+    status: SearchRunStatus
 
 
 class ScoutSearchResult(BaseModel):
     """Complete result of a scout search run."""
 
     run_id: str
-    status: str
+    status: SearchRunStatus
     total_discovered: int = 0
     total_filtered: int = 0
     total_analyzed: int = 0

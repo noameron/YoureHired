@@ -37,7 +37,7 @@ class Settings(BaseSettings):
 
     # GitHub Scout Configuration
     github_token: str = ""  # Personal access token with public_repo read access
-    scout_db_path: str = "data/scout.db"  # SQLite database for caching results
+    scout_db_path: str = "data/scout.db"  # SQLite DB; dir auto-created by GitHubReposDB
     scout_analysis_timeout: float = 60.0  # Seconds per LLM analysis batch
     scout_max_repos: int = 50  # Max repos returned from GitHub search
     scout_max_daily_analyses: int = 100  # Rate limit: analyses per day
