@@ -72,18 +72,21 @@ class AnalysisResult(BaseModel):
     reject_reason: str | None = None
 
 
+SearchRunStatus = Literal["running", "completed", "failed", "cancelled", "partial"]
+
+
 class SearchRunResponse(BaseModel):
     """Response when starting a scout search run."""
 
     run_id: str
-    status: Literal["running", "completed", "failed", "cancelled", "partial"]
+    status: SearchRunStatus
 
 
 class ScoutSearchResult(BaseModel):
     """Complete result of a scout search run."""
 
     run_id: str
-    status: str
+    status: SearchRunStatus
     total_discovered: int = 0
     total_filtered: int = 0
     total_analyzed: int = 0
