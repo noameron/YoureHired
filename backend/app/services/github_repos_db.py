@@ -37,7 +37,7 @@ def _sql(name: str) -> str:
     return (_QUERIES_DIR / f"{name}.sql").read_text().strip()
 
 
-def _row_to_analysis_result(row: tuple) -> AnalysisResult:  # type: ignore[type-arg]
+def _row_to_analysis_result(row: aiosqlite.Row) -> AnalysisResult:
     """Convert a get_analysis_with_repos row to AnalysisResult."""
     return AnalysisResult(
         repo=f"{row[6]}/{row[7]}",
@@ -49,7 +49,7 @@ def _row_to_analysis_result(row: tuple) -> AnalysisResult:  # type: ignore[type-
     )
 
 
-def _row_to_repo_metadata(row: tuple) -> RepoMetadata:  # type: ignore[type-arg]
+def _row_to_repo_metadata(row: aiosqlite.Row) -> RepoMetadata:
     """Convert a get_analysis_with_repos row to RepoMetadata."""
     return RepoMetadata(
         github_id=row[5],
