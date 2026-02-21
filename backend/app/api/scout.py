@@ -9,9 +9,6 @@ from fastapi.responses import StreamingResponse
 
 from app.constants import SSE_HEADERS
 from app.schemas.scout import (
-    DeveloperProfile,
-    DeveloperProfileResponse,
-    ProfileIdResponse,
     ScoutSearchResult,
     SearchFilters,
     SearchRunResponse,
@@ -44,28 +41,6 @@ def _check_rate_limit(ip: str) -> str | None:
     return None
 
 
-# --- Profile endpoints ---
-
-
-@router.post("/scout/profile")
-async def save_profile(profile: DeveloperProfile) -> ProfileIdResponse:
-    """Save or update the developer profile."""
-    profile_id = await github_repos_db.save_profile(profile)
-    return ProfileIdResponse(id=profile_id)
-
-
-@router.get("/scout/profile")
-async def get_profile() -> DeveloperProfileResponse:
-    """Retrieve the developer profile."""
-    profile = await github_repos_db.get_profile()
-    if not profile:
-        raise HTTPException(status_code=404, detail="No developer profile found")
-    return profile
-
-
-# --- Search endpoints ---
-
-
 @router.post("/scout/search", response_model=SearchRunResponse, status_code=201)
 async def start_search(filters: SearchFilters, request: Request) -> SearchRunResponse:
     """Start a new scout search run."""
@@ -73,10 +48,6 @@ async def start_search(filters: SearchFilters, request: Request) -> SearchRunRes
     rate_error = _check_rate_limit(ip)
     if rate_error:
         raise HTTPException(status_code=429, detail=rate_error)
-
-    profile_resp = await github_repos_db.get_profile()
-    if not profile_resp:
-        raise HTTPException(status_code=400, detail="Save a developer profile before searching")
 
     run_id = await github_repos_db.create_search_run(filters)
     # Note: _active_searches is set by stream_search, not here.
@@ -86,10 +57,10 @@ async def start_search(filters: SearchFilters, request: Request) -> SearchRunRes
 
 
 async def _stream_scout_events(
-    run_id: str, filters: SearchFilters, profile: DeveloperProfile, session_id: str
+    run_id: str, filters: SearchFilters
 ) -> AsyncGenerator[str, None]:
     try:
-        async for event in scout_search_stream(filters, profile, run_id, session_id):
+        async for event in scout_search_stream(filters, run_id):
             yield f"data: {json.dumps(event)}\n\n"
     finally:
         _active_searches.pop(run_id, None)
@@ -98,18 +69,17 @@ async def _stream_scout_events(
 
 async def _validate_stream_request(
     run_id: str,
-) -> tuple[DeveloperProfile, SearchFilters] | str:
-    """Validate a stream request. Returns (profile, filters) or an error message."""
+) -> SearchFilters | str:
+    """Validate a stream request. Returns filters or an error message."""
     run = await github_repos_db.get_search_run(run_id)
     if not run:
         return "Search run not found"
     if run_id in _active_searches:
         return "Search already in progress"
-    profile_resp = await github_repos_db.get_profile()
     filters = await github_repos_db.get_search_run_filters(run_id)
-    if not profile_resp or not filters:
-        return "Profile or filters not found"
-    return profile_resp.profile, filters
+    if not filters:
+        return "Filters not found"
+    return filters
 
 
 @router.get("/scout/search/{run_id}/stream")
@@ -123,10 +93,10 @@ async def stream_search(run_id: str) -> StreamingResponse:
             headers=SSE_HEADERS,
         )
 
-    profile, filters = result
+    filters = result
     _active_searches[run_id] = True
     return StreamingResponse(
-        _stream_scout_events(run_id, filters, profile, run_id),
+        _stream_scout_events(run_id, filters),
         media_type="text/event-stream",
         headers=SSE_HEADERS,
     )

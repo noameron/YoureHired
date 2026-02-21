@@ -8,7 +8,7 @@ multiple AnalysisResult instances for batch processing.
 import pytest
 from pydantic import ValidationError
 
-from app.agents.repo_analyst_agent import RepoAnalysisBatch
+from app.agents.repo_analyst_agent import RepoAnalysisBatch, repo_analyst_agent
 from app.schemas.scout import AnalysisResult
 
 
@@ -69,3 +69,26 @@ def test_batch_accepts_empty_results():
     # THEN
     assert len(batch.results) == 0
     assert batch.results == []
+
+
+def test_repo_analyst_agent_has_no_input_guardrails_but_has_output_guardrails():
+    """
+    GIVEN the repo_analyst_agent
+    WHEN checking its guardrail configuration
+    THEN it should have NO input guardrails (empty list)
+    AND it should have output guardrails (non-empty list)
+    """
+    # GIVEN
+    agent = repo_analyst_agent
+
+    # WHEN
+    input_guardrails = agent.input_guardrails
+    output_guardrails = agent.output_guardrails
+
+    # THEN
+    assert input_guardrails == [], (
+        f"Expected no input guardrails, but found: {input_guardrails}"
+    )
+    assert len(output_guardrails) > 0, (
+        "Expected output guardrails to be present for data leakage protection"
+    )

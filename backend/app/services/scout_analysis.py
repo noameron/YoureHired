@@ -1,13 +1,10 @@
 """Batch analysis service for scout repository evaluation."""
 
-import asyncio
 import logging
-import uuid
-from collections.abc import AsyncGenerator
 
 from app.agents.repo_analyst_agent import RepoAnalysisBatch, repo_analyst_agent
 from app.config import settings
-from app.schemas.scout import AnalysisResult, DeveloperProfile, RepoMetadata
+from app.schemas.scout import AnalysisResult, RepoMetadata, SearchFilters
 from app.services.task_registry import run_agent_streamed
 
 # Approximately 4K tokens for GPT-4o-mini context window
@@ -40,7 +37,7 @@ def _format_repo_section(repo: RepoMetadata, readme: str | None) -> str:
 
 
 def _build_batch_input(
-    profile: DeveloperProfile,
+    filters: SearchFilters,
     repos: list[RepoMetadata],
     readmes: list[str | None],
 ) -> str:
@@ -54,18 +51,17 @@ def _build_batch_input(
             f"repos and readmes must have same length: {len(repos)} vs {len(readmes)}"
         )
 
-    header = "\n".join([
-        "DEVELOPER PROFILE:",
-        f"Languages: {', '.join(profile.languages)}",
-        f"Topics: {', '.join(profile.topics)}",
-        f"Skill Level: {profile.skill_level}",
-        f"Goals: {profile.goals}",
-        "",
-        "REPOSITORIES TO ANALYZE:",
-    ])
+    header_lines = [
+        "SEARCH CONTEXT:",
+        f"Languages: {', '.join(filters.languages)}",
+        f"Topics: {', '.join(filters.topics)}",
+    ]
+    if filters.query:
+        header_lines.append(f"Query: {filters.query}")
+    header_lines.extend(["", "REPOSITORIES TO ANALYZE:"])
 
     sections = [_format_repo_section(repo, readme) for repo, readme in zip(repos, readmes)]
-    return header + "\n\n" + "\n\n".join(sections)
+    return "\n".join(header_lines) + "\n\n" + "\n\n".join(sections)
 
 
 def batch_repos(repos: list[RepoMetadata], batch_size: int) -> list[list[RepoMetadata]]:
@@ -74,13 +70,13 @@ def batch_repos(repos: list[RepoMetadata], batch_size: int) -> list[list[RepoMet
 
 
 async def analyze_batch(
-    profile: DeveloperProfile,
+    filters: SearchFilters,
     repos: list[RepoMetadata],
     readmes: list[str | None],
     session_id: str,
 ) -> list[AnalysisResult]:
     """Analyze a single batch via the repo_analyst_agent."""
-    batch_input = _build_batch_input(profile, repos, readmes)
+    batch_input = _build_batch_input(filters, repos, readmes)
     output = await run_agent_streamed(
         repo_analyst_agent,
         batch_input,
@@ -91,59 +87,3 @@ async def analyze_batch(
         return []
     batch_result: RepoAnalysisBatch = output
     return batch_result.results
-
-
-def _create_progress_event(analyzed: int, total: int) -> dict[str, object]:
-    """Create a progress event dict."""
-    return {
-        "type": "progress",
-        "message": f"Analyzed {analyzed}/{total} repos...",
-        "phase": "analysis",
-    }
-
-
-def _create_error_event(message: str, analyzed: int, total: int) -> dict[str, object]:
-    """Create an error event dict."""
-    return {
-        "type": "error",
-        "message": f"{message} ({analyzed}/{total})",
-        "phase": "analysis",
-    }
-
-
-async def analyze_repos_streamed(
-    profile: DeveloperProfile,
-    repos: list[RepoMetadata],
-    readmes: list[str | None],
-) -> AsyncGenerator[dict[str, object], None]:
-    """Run batched analysis with concurrent execution and progress streaming.
-
-    Yields progress/error events after each batch completes.
-    """
-    capped_repos = repos[: settings.scout_max_repos]
-    capped_readmes = readmes[: settings.scout_max_repos]
-    bs = settings.scout_batch_size
-    total = len(capped_repos)
-    session_id = uuid.uuid4().hex
-    analyzed = 0
-
-    repo_batches = batch_repos(capped_repos, bs)
-    readme_batches = [capped_readmes[i : i + bs] for i in range(0, total, bs)]
-
-    tasks = [
-        asyncio.create_task(analyze_batch(profile, repo_batch, readme_batch, session_id))
-        for repo_batch, readme_batch in zip(repo_batches, readme_batches)
-    ]
-
-    for coro in asyncio.as_completed(tasks):
-        try:
-            batch_results = await coro
-            analyzed += len(batch_results)
-            yield _create_progress_event(analyzed, total)
-        except TimeoutError:
-            analyzed += bs
-            yield _create_error_event("Batch timed out, skipping...", analyzed, total)
-        except Exception as e:
-            logger.exception("Batch analysis failed: %s", e)
-            analyzed += bs
-            yield _create_error_event("Batch failed, continuing...", analyzed, total)

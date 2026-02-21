@@ -3,7 +3,6 @@
 import asyncio
 import random
 import re
-from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -79,6 +78,9 @@ class GitHubGraphQLClient:
 
         response = await self._retry_request(payload, headers)
         data = response.json()
+        if data.get("data") is None and "errors" in data:
+            messages = [e.get("message", str(e)) for e in data["errors"]]
+            raise ValueError(f"GraphQL errors: {'; '.join(messages)}")
         result: dict[str, Any] = data.get("data", data)
         return result
 
@@ -145,16 +147,11 @@ class GitHubGraphQLClient:
         max_total: int,
     ) -> str | None:
         search = data["search"]
-
-        if search["repositoryCount"] >= 1000 and not any(
-            "incomplete" in w.lower() for w in warnings
-        ):
-            warnings.append(
-                "Results may be incomplete (GitHub caps at 1,000). "
-                "Try narrowing your filters."
-            )
+        _warn_if_incomplete(warnings, search["repositoryCount"])
 
         for edge in search["edges"]:
+            if edge["node"] is None:
+                continue
             repos.append(_parse_repo_node(edge["node"]))
 
         rate_remaining = data.get("rateLimit", {}).get("remaining", 5000)
@@ -236,9 +233,6 @@ def _build_search_query_string(filters: SearchFilters) -> str:
 
     if filters.min_activity_date:
         parts.append(f"pushed:>={filters.min_activity_date}")
-    else:
-        six_months_ago = (datetime.now(tz=UTC) - timedelta(days=180)).strftime("%Y-%m-%d")
-        parts.append(f"pushed:>={six_months_ago}")
 
     for topic in filters.topics:
         parts.append(f"topic:{topic}")
@@ -263,7 +257,17 @@ def _build_readme_query(repos: list[tuple[str, str]], offset: int = 0) -> str:
     return "query { " + " ".join(parts) + " rateLimit { remaining resetAt } }"
 
 
+def _warn_if_incomplete(warnings: list[str], repo_count: int) -> None:
+    """Append a warning if GitHub's 1,000-result cap may truncate results."""
+    if repo_count >= 1000 and not any("incomplete" in w.lower() for w in warnings):
+        warnings.append(
+            "Results may be incomplete (GitHub caps at 1,000). "
+            "Try narrowing your filters."
+        )
+
+
 async def _sleep_with_jitter(delay: float) -> None:
+    """Add random jitter to prevent thundering herd on concurrent retries."""
     jitter = random.uniform(0, delay * 0.5)
     await asyncio.sleep(delay + jitter)
 

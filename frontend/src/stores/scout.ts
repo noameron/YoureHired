@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type {
-  DeveloperProfileResponse,
   SearchFilters,
   AnalysisResult,
   RepoMetadata,
@@ -9,18 +8,15 @@ import type {
 } from '@/types/scout'
 
 export const useScoutStore = defineStore('scout', () => {
-  // Profile state
-  const profile = ref<DeveloperProfileResponse | null>(null)
-  const profileLoading = ref(false)
-
   // Search state
   const filters = ref<SearchFilters>({
     languages: [],
     min_stars: 10,
-    max_stars: 50000,
+    max_stars: 500000,
     topics: [],
     min_activity_date: null,
     license: null,
+    query: '',
   })
   const currentRunId = ref<string | null>(null)
   const searchStatus = ref<string | null>(null)
@@ -40,7 +36,6 @@ export const useScoutStore = defineStore('scout', () => {
   const error = ref<string | null>(null)
 
   // Computed
-  const hasProfile = computed(() => profile.value !== null)
   const hasResults = computed(() => results.value.length > 0)
   const canSearch = computed(() => filters.value.languages.length > 0)
 
@@ -70,13 +65,12 @@ export const useScoutStore = defineStore('scout', () => {
   }
 
   return {
-    profile, profileLoading,
     filters, currentRunId, searchStatus, searchPhase,
     statusMessage, isSearching,
     results, repos, warnings,
     totalDiscovered, totalFiltered, totalAnalyzed,
     error,
-    hasProfile, hasResults, canSearch,
+    hasResults, canSearch,
     setSearchResult, resetSearch,
   }
 })
