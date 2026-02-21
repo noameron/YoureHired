@@ -3,7 +3,6 @@ Test suite for GitHubReposDB persistence layer.
 
 These tests cover:
 - Database initialization and table creation
-- Developer profile CRUD operations
 - Search run lifecycle management
 - Repository upsert and deduplication
 - Analysis result storage and retrieval
@@ -18,8 +17,6 @@ import aiosqlite
 
 from app.schemas.scout import (
     AnalysisResult,
-    DeveloperProfile,
-    DeveloperProfileResponse,
     RepoMetadata,
     ScoutSearchResult,
     SearchFilters,
@@ -35,7 +32,7 @@ class TestGitHubReposDBInit:
         """
         GIVEN a fresh GitHubReposDB instance
         WHEN _ensure_init is called
-        THEN all 4 tables should exist in sqlite_master
+        THEN all 3 tables should exist in sqlite_master (no developer_profiles)
         """
         db = GitHubReposDB(str(tmp_path / "scout.db"))
         await db._ensure_init()
@@ -50,7 +47,6 @@ class TestGitHubReposDBInit:
 
         expected = [
             "analysis_results",
-            "developer_profiles",
             "repositories",
             "search_runs",
         ]
@@ -70,98 +66,6 @@ class TestGitHubReposDBInit:
             mode = (await cursor.fetchone())[0]
 
         assert mode.lower() == "wal"
-
-
-class TestProfileOperations:
-    """Test developer profile save and retrieve operations."""
-
-    async def test_save_profile_returns_default(self, tmp_path):
-        """
-        GIVEN a valid DeveloperProfile
-        WHEN save_profile is called
-        THEN it should return the string "default"
-        """
-        db = GitHubReposDB(str(tmp_path / "scout.db"))
-        profile = DeveloperProfile(
-            languages=["Python", "TypeScript"],
-            topics=["web", "api"],
-            skill_level="intermediate",
-            goals="Build full-stack applications",
-        )
-
-        result = await db.save_profile(profile)
-
-        assert result == "default"
-
-    async def test_get_profile_returns_saved(self, tmp_path):
-        """
-        GIVEN a saved developer profile
-        WHEN get_profile is called
-        THEN it should return DeveloperProfileResponse with matching fields
-        """
-        db = GitHubReposDB(str(tmp_path / "scout.db"))
-        profile = DeveloperProfile(
-            languages=["Python", "TypeScript"],
-            topics=["web", "api"],
-            skill_level="advanced",
-            goals="Contribute to open source",
-        )
-
-        await db.save_profile(profile)
-        result = await db.get_profile()
-
-        assert result is not None
-        assert isinstance(result, DeveloperProfileResponse)
-        assert result.id == "default"
-        assert result.profile.languages == ["Python", "TypeScript"]
-        assert result.profile.topics == ["web", "api"]
-        assert result.profile.skill_level == "advanced"
-        assert result.profile.goals == "Contribute to open source"
-        assert result.created_at is not None
-        assert result.updated_at is None  # First save has no update timestamp
-
-    async def test_save_overwrites_previous(self, tmp_path):
-        """
-        GIVEN two different developer profiles
-        WHEN both are saved sequentially
-        THEN get_profile should return the second profile (single-profile mode)
-        """
-        db = GitHubReposDB(str(tmp_path / "scout.db"))
-
-        profile_a = DeveloperProfile(
-            languages=["Java"],
-            topics=["backend"],
-            skill_level="beginner",
-            goals="Learn Java",
-        )
-        profile_b = DeveloperProfile(
-            languages=["Rust", "Go"],
-            topics=["systems", "performance"],
-            skill_level="advanced",
-            goals="Build high-performance systems",
-        )
-
-        await db.save_profile(profile_a)
-        await db.save_profile(profile_b)
-        result = await db.get_profile()
-
-        assert result is not None
-        assert result.profile.languages == ["Rust", "Go"]
-        assert result.profile.topics == ["systems", "performance"]
-        assert result.profile.skill_level == "advanced"
-        assert result.updated_at is not None  # Second save creates update timestamp
-
-    async def test_get_profile_empty_returns_none(self, tmp_path):
-        """
-        GIVEN a fresh database with no profiles
-        WHEN get_profile is called
-        THEN it should return None
-        """
-        db = GitHubReposDB(str(tmp_path / "scout.db"))
-
-        result = await db.get_profile()
-
-        assert result is None
 
 
 class TestSearchRunOperations:
