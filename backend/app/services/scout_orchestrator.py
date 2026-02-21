@@ -7,7 +7,6 @@ from collections.abc import AsyncGenerator
 from app.config import settings
 from app.schemas.scout import (
     AnalysisResult,
-    DeveloperProfile,
     RepoMetadata,
     ScoutSearchResult,
     SearchFilters,
@@ -17,6 +16,7 @@ from app.services.github_client import GitHubGraphQLClient, create_github_client
 from app.services.github_repos_db import github_repos_db
 from app.services.repo_filtering import apply_filters
 from app.services.scout_analysis import analyze_batch, batch_repos
+from app.services.task_registry import task_registry
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +27,10 @@ def _status(message: str, phase: str) -> Event:
     return {"type": "status", "message": message, "phase": phase}
 
 
+def _cancelled() -> Event:
+    return {"type": "status", "message": "Search cancelled", "status": "cancelled"}
+
+
 def _error(message: str, phase: str | None = None) -> Event:
     evt: Event = {"type": "error", "message": message}
     if phase:
@@ -34,12 +38,35 @@ def _error(message: str, phase: str | None = None) -> Event:
     return evt
 
 
+def _check_cancelled(session_id: str) -> None:
+    """Raise CancelledError if the session has been cancelled."""
+    if task_registry.is_cancelled(session_id):
+        raise asyncio.CancelledError
+
+
 async def _discover(
     client: GitHubGraphQLClient,
     filters: SearchFilters,
 ) -> tuple[list[RepoMetadata], list[str]]:
-    """Search GitHub and persist discovered repos."""
+    """Search GitHub and persist discovered repos.
+
+    If no repos match and topic filters are active, retries without topics.
+    Topics still influence AI ranking during the analysis phase.
+    """
     repos, warnings = await client.search_repositories(filters)
+
+    if not repos and filters.topics:
+        topics_str = ", ".join(filters.topics)
+        relaxed = filters.model_copy(update={"topics": []})
+        repos, relaxed_warnings = await client.search_repositories(relaxed)
+        warnings.extend(relaxed_warnings)
+        if repos:
+            warnings.append(
+                f"No repos matched topic filter ({topics_str}). "
+                f"Showing results without topic filter — "
+                f"topics still influence AI ranking."
+            )
+
     if repos:
         await github_repos_db.upsert_repositories(repos)
     return repos, warnings
@@ -68,7 +95,7 @@ async def _fetch_readmes(
 
 
 async def _run_analysis(
-    profile: DeveloperProfile,
+    filters: SearchFilters,
     capped: list[RepoMetadata],
     readmes: list[str | None],
     session_id: str,
@@ -83,40 +110,45 @@ async def _run_analysis(
     readme_batches = [readmes[i : i + bs] for i in range(0, total, bs)]
 
     tasks = [
-        asyncio.create_task(analyze_batch(profile, rb, rmb, session_id))
+        asyncio.create_task(analyze_batch(filters, rb, rmb, session_id))
         for rb, rmb in zip(repo_batches, readme_batches)
     ]
 
-    for coro in asyncio.as_completed(tasks):
-        try:
-            batch_results = await coro
-            all_results.extend(batch_results)
-            analyzed += len(batch_results)
-            yield all_results, {
-                "type": "progress",
-                "message": f"Analyzed {analyzed}/{total} repos...",
-                "phase": "analyzing",
-            }
-        except TimeoutError:
-            analyzed = min(analyzed + bs, total)
-            yield all_results, {
-                "type": "error",
-                "message": f"Batch timed out ({analyzed}/{total})",
-                "phase": "analyzing",
-            }
-        except Exception as exc:
-            logger.exception("Batch analysis failed: %s", exc)
-            analyzed = min(analyzed + bs, total)
-            yield all_results, {
-                "type": "error",
-                "message": f"Batch failed ({analyzed}/{total})",
-                "phase": "analyzing",
-            }
+    try:
+        for coro in asyncio.as_completed(tasks):
+            _check_cancelled(session_id)
+            try:
+                batch_results = await coro
+                all_results.extend(batch_results)
+                analyzed += len(batch_results)
+                yield all_results, {
+                    "type": "progress",
+                    "message": f"Analyzed {analyzed}/{total} repos...",
+                    "phase": "analyzing",
+                }
+            except TimeoutError:
+                analyzed = min(analyzed + bs, total)
+                yield all_results, {
+                    "type": "error",
+                    "message": f"Batch timed out ({analyzed}/{total})",
+                    "phase": "analyzing",
+                }
+            except Exception as exc:
+                logger.exception("Batch analysis failed: %s", exc)
+                analyzed = min(analyzed + bs, total)
+                yield all_results, {
+                    "type": "error",
+                    "message": f"Batch failed ({analyzed}/{total})",
+                    "phase": "analyzing",
+                }
+    finally:
+        for task in tasks:
+            if not task.done():
+                task.cancel()
 
 
 async def scout_search_stream(
     filters: SearchFilters,
-    profile: DeveloperProfile,
     run_id: str,
     session_id: str,
 ) -> AsyncGenerator[Event, None]:
@@ -132,6 +164,8 @@ async def scout_search_stream(
             await github_repos_db.update_search_run(run_id, "completed", 0, 0, 0)
             return
 
+        _check_cancelled(session_id)
+
         yield _status("Filtering candidates...", "filtering")
         filtered, capped = _filter_repos(repos, filters)
         yield _status(f"{len(filtered)} repos passed filters", "filtering")
@@ -143,12 +177,16 @@ async def scout_search_stream(
             )
             return
 
+        _check_cancelled(session_id)
+
         yield _status(f"Fetching READMEs for {len(capped)} repos...", "filtering")
         readmes = await _fetch_readmes(client, capped)
 
+        _check_cancelled(session_id)
+
         yield _status("Starting AI analysis...", "analyzing")
         all_results: list[AnalysisResult] = []
-        async for results, event in _run_analysis(profile, capped, readmes, session_id):
+        async for results, event in _run_analysis(filters, capped, readmes, session_id):
             all_results = results
             yield event
 
@@ -177,6 +215,10 @@ async def scout_search_stream(
         )
         yield {"type": "complete", "data": result.model_dump()}
 
+    except asyncio.CancelledError:
+        logger.info("Scout search cancelled for run %s", run_id)
+        await github_repos_db.update_search_run(run_id, "cancelled", 0, 0, 0)
+        yield _cancelled()
     except Exception as e:
         logger.exception("Scout search failed for run %s", run_id)
         await github_repos_db.update_search_run(run_id, "failed", 0, 0, 0)
