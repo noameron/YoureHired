@@ -10,11 +10,10 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.agents.repo_analyst_agent import RepoAnalysisBatch
-from app.schemas.scout import AnalysisResult, DeveloperProfile, RepoMetadata
+from app.schemas.scout import AnalysisResult, RepoMetadata, SearchFilters
 from app.services.scout_analysis import (
     _build_batch_input,
     analyze_batch,
-    analyze_repos_streamed,
     batch_repos,
 )
 
@@ -22,13 +21,12 @@ from app.services.scout_analysis import (
 
 
 @pytest.fixture
-def sample_profile() -> DeveloperProfile:
-    """Sample developer profile for testing."""
-    return DeveloperProfile(
+def sample_filters() -> SearchFilters:
+    """Sample search filters for testing."""
+    return SearchFilters(
         languages=["Python", "Go"],
         topics=["web-framework", "api"],
-        skill_level="intermediate",
-        goals="Contribute to API frameworks",
+        query="Contribute to API frameworks",
     )
 
 
@@ -137,11 +135,11 @@ def test_batch_repos_fewer_than_batch_size(sample_repo):
 # Tests for _build_batch_input
 
 
-def test_build_batch_input_includes_profile_and_metadata(sample_profile, sample_repo):
+def test_build_batch_input_includes_profile_and_metadata(sample_filters, sample_repo):
     """
-    GIVEN a profile and batch of repos with metadata
+    GIVEN search filters and batch of repos with metadata
     WHEN building batch input
-    THEN output should contain profile languages and repo details
+    THEN output should contain search context and repo details
     """
     # GIVEN
     repos = [
@@ -155,20 +153,19 @@ def test_build_batch_input_includes_profile_and_metadata(sample_profile, sample_
     readmes = [None]
 
     # WHEN
-    output = _build_batch_input(sample_profile, repos, readmes)
+    output = _build_batch_input(sample_filters, repos, readmes)
 
     # THEN
     assert "Python" in output
     assert "Go" in output
     assert "web-framework" in output
     assert "api" in output
-    assert "intermediate" in output
     assert "Contribute to API frameworks" in output
     assert "fastapi/fastapi" in output
     assert "50000" in output or "50,000" in output  # Star count
 
 
-def test_build_batch_input_includes_readme(sample_profile, sample_repo):
+def test_build_batch_input_includes_readme(sample_filters, sample_repo):
     """
     GIVEN a repo with README content
     WHEN building batch input
@@ -179,14 +176,14 @@ def test_build_batch_input_includes_readme(sample_profile, sample_repo):
     readmes = ["# Test README\n\nThis is a test project."]
 
     # WHEN
-    output = _build_batch_input(sample_profile, repos, readmes)
+    output = _build_batch_input(sample_filters, repos, readmes)
 
     # THEN
     assert "# Test README" in output
     assert "This is a test project" in output
 
 
-def test_build_batch_input_no_readme(sample_profile, sample_repo):
+def test_build_batch_input_no_readme(sample_filters, sample_repo):
     """
     GIVEN a repo without README
     WHEN building batch input
@@ -197,13 +194,13 @@ def test_build_batch_input_no_readme(sample_profile, sample_repo):
     readmes = [None]
 
     # WHEN
-    output = _build_batch_input(sample_profile, repos, readmes)
+    output = _build_batch_input(sample_filters, repos, readmes)
 
     # THEN
     assert "Not available" in output
 
 
-def test_build_batch_input_mismatched_lengths(sample_profile, sample_repo):
+def test_build_batch_input_mismatched_lengths(sample_filters, sample_repo):
     """
     GIVEN repos and readmes with different lengths
     WHEN building batch input
@@ -215,14 +212,14 @@ def test_build_batch_input_mismatched_lengths(sample_profile, sample_repo):
 
     # WHEN / THEN
     with pytest.raises(ValueError, match="repos and readmes must have same length"):
-        _build_batch_input(sample_profile, repos, readmes)
+        _build_batch_input(sample_filters, repos, readmes)
 
 
 # Tests for analyze_batch
 
 
 @pytest.mark.asyncio
-async def test_analyze_batch_returns_results(sample_profile, sample_repo, sample_result):
+async def test_analyze_batch_returns_results(sample_filters, sample_repo, sample_result):
     """
     GIVEN a mocked run_agent_streamed that returns a RepoAnalysisBatch
     WHEN analyzing a batch
@@ -240,7 +237,7 @@ async def test_analyze_batch_returns_results(sample_profile, sample_repo, sample
         mock_run.return_value = batch_response
 
         # WHEN
-        results = await analyze_batch(sample_profile, repos, readmes, session_id="test")
+        results = await analyze_batch(sample_filters, repos, readmes, session_id="test")
 
         # THEN
         assert len(results) == 1
@@ -250,7 +247,7 @@ async def test_analyze_batch_returns_results(sample_profile, sample_repo, sample
 
 
 @pytest.mark.asyncio
-async def test_analyze_batch_returns_empty_on_none(sample_profile, sample_repo):
+async def test_analyze_batch_returns_empty_on_none(sample_filters, sample_repo):
     """
     GIVEN a mocked run_agent_streamed that returns None
     WHEN analyzing a batch
@@ -266,142 +263,25 @@ async def test_analyze_batch_returns_empty_on_none(sample_profile, sample_repo):
         mock_run.return_value = None
 
         # WHEN
-        results = await analyze_batch(sample_profile, repos, readmes, session_id="test")
+        results = await analyze_batch(sample_filters, repos, readmes, session_id="test")
 
         # THEN
         assert results == []
 
 
-# Tests for analyze_repos_streamed
-
-
-@pytest.mark.asyncio
-async def test_analyze_repos_streamed_yields_progress(sample_profile, sample_repo, sample_result):
+def test_build_batch_input_contains_search_context_header(sample_filters, sample_repo):
     """
-    GIVEN repos to analyze
-    WHEN streaming analysis
-    THEN should yield progress events with correct phase
+    GIVEN search filters and batch of repos
+    WHEN building batch input
+    THEN output should contain "SEARCH CONTEXT" header and not "DEVELOPER PROFILE"
     """
     # GIVEN
-    repos = [
-        sample_repo(owner="org", name="repo1"),
-        sample_repo(owner="org", name="repo2"),
-    ]
-    readmes = [None, None]
-    results = [sample_result(repo="org/repo1"), sample_result(repo="org/repo2")]
+    repos = [sample_repo(owner="org", name="repo")]
+    readmes = [None]
 
-    with patch("app.services.scout_analysis.analyze_batch", new_callable=AsyncMock) as mock_analyze:
-        mock_analyze.return_value = results
+    # WHEN
+    output = _build_batch_input(sample_filters, repos, readmes)
 
-        # WHEN
-        events = []
-        async for event in analyze_repos_streamed(sample_profile, repos, readmes):
-            events.append(event)
-
-        # THEN
-        assert len(events) > 0
-        # Should have progress events
-        progress_events = [e for e in events if e.get("type") == "progress"]
-        assert len(progress_events) > 0
-        # Check phase is set correctly
-        assert any(e.get("phase") == "analysis" for e in progress_events)
-
-
-@pytest.mark.asyncio
-async def test_analyze_repos_streamed_handles_timeout(sample_profile, sample_repo, sample_result):
-    """
-    GIVEN multiple batches where one raises TimeoutError
-    WHEN streaming analysis
-    THEN should continue processing other batches
-    """
-    # GIVEN
-    repos = [sample_repo(owner="org", name=f"repo{i}") for i in range(25)]
-    readmes = [None] * 25
-    success_result = sample_result(repo="org/repo0")
-
-    with patch("app.services.scout_analysis.analyze_batch", new_callable=AsyncMock) as mock_analyze:
-        # First batch times out, others succeed
-        mock_analyze.side_effect = [
-            TimeoutError("Timeout"),
-            [success_result] * 10,
-            [success_result] * 5,
-        ]
-
-        # WHEN
-        events = []
-        async for event in analyze_repos_streamed(sample_profile, repos, readmes):
-            events.append(event)
-
-        # THEN
-        # Should have completed despite timeout
-        assert len(events) > 0
-        # Should have error event for timeout
-        error_events = [e for e in events if e.get("type") == "error"]
-        assert len(error_events) > 0
-
-
-@pytest.mark.asyncio
-async def test_analyze_repos_streamed_handles_exception(sample_profile, sample_repo, sample_result):
-    """
-    GIVEN multiple batches where one raises generic Exception
-    WHEN streaming analysis
-    THEN should continue processing other batches
-    """
-    # GIVEN
-    repos = [sample_repo(owner="org", name=f"repo{i}") for i in range(25)]
-    readmes = [None] * 25
-    success_result = sample_result(repo="org/repo0")
-
-    with patch("app.services.scout_analysis.analyze_batch", new_callable=AsyncMock) as mock_analyze:
-        # First batch fails, others succeed
-        mock_analyze.side_effect = [
-            Exception("API Error"),
-            [success_result] * 10,
-            [success_result] * 5,
-        ]
-
-        # WHEN
-        events = []
-        async for event in analyze_repos_streamed(sample_profile, repos, readmes):
-            events.append(event)
-
-        # THEN
-        # Should have completed despite exception
-        assert len(events) > 0
-        # Should have error event
-        error_events = [e for e in events if e.get("type") == "error"]
-        assert len(error_events) > 0
-
-
-@pytest.mark.asyncio
-async def test_analyze_repos_streamed_caps_repos(
-    sample_profile, sample_repo, sample_result, monkeypatch
-):
-    """
-    GIVEN more repos than scout_max_repos setting
-    WHEN streaming analysis
-    THEN should process only the maximum allowed
-    """
-    # GIVEN
-    from app.config import settings
-
-    monkeypatch.setattr(settings, "scout_max_repos", 10)
-
-    repos = [sample_repo(owner="org", name=f"repo{i}") for i in range(25)]
-    readmes = [None] * 25
-    result = sample_result(repo="org/repo0")
-
-    with patch("app.services.scout_analysis.analyze_batch", new_callable=AsyncMock) as mock_analyze:
-        mock_analyze.return_value = [result] * 10
-
-        # WHEN
-        events = []
-        async for event in analyze_repos_streamed(sample_profile, repos, readmes):
-            events.append(event)
-
-        # THEN
-        # Should only process first 10 repos (1 batch with batch_size=10)
-        assert mock_analyze.await_count == 1
-        call_args = mock_analyze.call_args[0]
-        repos_arg = call_args[1]
-        assert len(repos_arg) == 10
+    # THEN
+    assert "SEARCH CONTEXT" in output
+    assert "DEVELOPER PROFILE" not in output
