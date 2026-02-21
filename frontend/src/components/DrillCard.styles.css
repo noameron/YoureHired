@@ -3,8 +3,36 @@
   border-radius: var(--radius-card);
   padding: var(--space-8);
   box-shadow: var(--shadow-card);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-primary);
+  position: relative;
   transition: box-shadow 300ms var(--ease-out-cubic);
+}
+
+/* Brass rivets — top corners */
+.drill-card::before,
+.drill-card::after {
+  content: '';
+  position: absolute;
+  width: var(--rivet-size);
+  height: var(--rivet-size);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 35%,
+    var(--rivet-highlight) 0%,
+    var(--rivet-color) 50%,
+    var(--rivet-shadow) 100%
+  );
+  box-shadow: var(--rivet-box-shadow);
+}
+
+.drill-card::before {
+  top: 12px;
+  left: 12px;
+}
+
+.drill-card::after {
+  top: 12px;
+  right: 12px;
 }
 
 .drill-card h1 {
@@ -23,13 +51,15 @@
   padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-badge);
   font-size: var(--text-sm);
-  font-weight: var(--font-medium);
+  font-weight: var(--font-bold);
   letter-spacing: var(--tracking-wide);
+  border: 1px solid transparent;
 }
 
 .type {
   background: var(--accent-light);
   color: var(--accent-primary);
+  border-color: rgba(212, 144, 80, 0.3);
 }
 
 .difficulty {
@@ -37,35 +67,27 @@
 }
 
 .difficulty.easy {
-  background: linear-gradient(
-    135deg,
-    var(--color-success-bg) 0%,
-    rgba(16, 185, 129, 0.05) 100%
-  );
+  background: var(--color-success-bg);
   color: var(--color-success-text);
+  border-color: rgba(90, 138, 90, 0.3);
 }
 
 .difficulty.medium {
-  background: linear-gradient(
-    135deg,
-    var(--color-warning-bg) 0%,
-    rgba(245, 158, 11, 0.05) 100%
-  );
+  background: var(--color-warning-bg);
   color: var(--color-warning-text);
+  border-color: rgba(196, 154, 60, 0.3);
 }
 
 .difficulty.hard {
-  background: linear-gradient(
-    135deg,
-    var(--color-error-bg) 0%,
-    rgba(239, 68, 68, 0.05) 100%
-  );
+  background: var(--color-error-bg);
   color: var(--color-error-text);
+  border-color: rgba(160, 64, 48, 0.3);
 }
 
 .time {
   background: var(--bg-tertiary);
   color: var(--text-secondary);
+  border-color: var(--border-subtle);
 }
 
 .description {
@@ -74,10 +96,24 @@
   margin-bottom: var(--space-6);
 }
 
+/* Art Deco section divider */
 .section {
   margin-top: var(--space-6);
   padding-top: var(--space-6);
   border-top: 1px solid var(--border-primary);
+  position: relative;
+}
+
+.section::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 6px;
+  height: 6px;
+  background: var(--ornament-color);
+  box-shadow: 0 0 0 3px var(--bg-secondary);
 }
 
 .drill-card h3 {
@@ -113,7 +149,8 @@
   padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-full);
   font-size: var(--text-sm);
-  font-weight: var(--font-medium);
+  font-weight: var(--font-bold);
+  border: 1px solid var(--border-subtle);
 }
 
 .code-block {
@@ -167,7 +204,7 @@
   border: none;
   cursor: pointer;
   font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
+  font-weight: var(--font-bold);
   color: var(--accent-primary);
   text-align: left;
   transition: background 200ms var(--ease-spring);
@@ -215,6 +252,7 @@
   line-height: var(--leading-relaxed);
   resize: vertical;
   box-sizing: border-box;
+  box-shadow: var(--shadow-inset);
   transition:
     border-color 200ms var(--ease-spring),
     box-shadow 200ms var(--ease-spring);
@@ -228,7 +266,7 @@
   outline: none;
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px var(--accent-light),
-    inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    var(--shadow-inset-light);
 }
 
 .solution-input:disabled {

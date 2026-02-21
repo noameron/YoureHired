@@ -7,8 +7,6 @@ from pydantic import ValidationError
 
 from app.schemas.scout import (
     AnalysisResult,
-    DeveloperProfile,
-    DeveloperProfileResponse,
     RepoMetadata,
     ScoutSearchResult,
     ScoutStreamCompleteEvent,
@@ -19,56 +17,6 @@ from app.schemas.scout import (
 )
 
 
-class TestDeveloperProfile:
-    """Tests for the DeveloperProfile schema."""
-
-    def test_valid_profile(self) -> None:
-        """Valid profile with all required fields."""
-        profile = DeveloperProfile(
-            languages=["Python"],
-            topics=["web"],
-            skill_level="advanced",
-            goals="Learn OSS",
-        )
-        assert profile.languages == ["Python"]
-        assert profile.topics == ["web"]
-        assert profile.skill_level == "advanced"
-        assert profile.goals == "Learn OSS"
-
-    def test_empty_languages_rejected(self) -> None:
-        """Empty languages list is invalid."""
-        with pytest.raises(ValidationError) as exc_info:
-            DeveloperProfile(
-                languages=[],
-                topics=["web"],
-                skill_level="beginner",
-                goals="Learn",
-            )
-        assert "languages" in str(exc_info.value)
-
-    def test_goals_over_500_chars_rejected(self) -> None:
-        """Goals exceeding 500 characters is invalid."""
-        with pytest.raises(ValidationError):
-            DeveloperProfile(
-                languages=["Python"],
-                goals="x" * 501,
-            )
-
-    def test_valid_skill_levels(self) -> None:
-        """All skill levels are valid."""
-        skill_levels: list[Literal["beginner", "intermediate", "advanced"]] = [
-            "beginner",
-            "intermediate",
-            "advanced",
-        ]
-        for skill_level in skill_levels:
-            profile = DeveloperProfile(
-                languages=["Python"],
-                skill_level=skill_level,
-            )
-            assert profile.skill_level == skill_level
-
-
 class TestSearchFilters:
     """Tests for the SearchFilters schema."""
 
@@ -77,7 +25,7 @@ class TestSearchFilters:
         filters = SearchFilters(languages=["Python"])
         assert filters.languages == ["Python"]
         assert filters.min_stars == 10
-        assert filters.max_stars == 50000
+        assert filters.max_stars == 500000
         assert filters.topics == []
         assert filters.min_activity_date is None
         assert filters.license is None
@@ -133,6 +81,35 @@ class TestSearchFilters:
         )
         assert filters.min_stars == 0
         assert filters.max_stars == 0
+
+    def test_query_defaults_to_empty_string(self) -> None:
+        """Query field defaults to empty string."""
+        # GIVEN - filters created without query field
+        filters = SearchFilters(languages=["Python"])
+
+        # WHEN - query is accessed
+        # THEN - it should be an empty string
+        assert filters.query == ""
+
+    def test_query_max_length_500(self) -> None:
+        """Query exceeding 500 characters is invalid."""
+        # GIVEN - query with 501 characters
+        # WHEN - creating SearchFilters
+        # THEN - ValidationError should be raised
+        with pytest.raises(ValidationError):
+            SearchFilters(languages=["Python"], query="x" * 501)
+
+    def test_query_included_in_model_dump(self) -> None:
+        """Query field is included in model_dump output."""
+        # GIVEN - filters with query field
+        filters = SearchFilters(languages=["Python"], query="find CLI tools")
+
+        # WHEN - model_dump is called
+        dumped = filters.model_dump()
+
+        # THEN - query should be in output with correct value
+        assert "query" in dumped
+        assert dumped["query"] == "find CLI tools"
 
 
 class TestAnalysisResult:
@@ -329,40 +306,6 @@ class TestScoutStreamEvents:
         event = ScoutStreamErrorEvent(message="Failed")
         assert event.type == "error"
         assert event.message == "Failed"
-
-
-class TestDeveloperProfileResponse:
-    """Tests for the DeveloperProfileResponse schema."""
-
-    def test_valid_response_with_update(self) -> None:
-        """Valid response with all fields including updated_at."""
-        profile = DeveloperProfile(
-            languages=["Python", "JavaScript"],
-            topics=["web", "ml"],
-            skill_level="advanced",
-            goals="Contribute to ML libraries",
-        )
-        response = DeveloperProfileResponse(
-            id="prof_123",
-            profile=profile,
-            created_at="2025-01-01T00:00:00Z",
-            updated_at="2025-01-02T00:00:00Z",
-        )
-        assert response.id == "prof_123"
-        assert response.profile.languages == ["Python", "JavaScript"]
-        assert response.created_at == "2025-01-01T00:00:00Z"
-        assert response.updated_at == "2025-01-02T00:00:00Z"
-
-    def test_valid_response_without_update(self) -> None:
-        """Valid response without updated_at field."""
-        profile = DeveloperProfile(languages=["Go"])
-        response = DeveloperProfileResponse(
-            id="prof_456",
-            profile=profile,
-            created_at="2025-01-01T00:00:00Z",
-        )
-        assert response.id == "prof_456"
-        assert response.updated_at is None
 
 
 class TestSearchRunResponse:

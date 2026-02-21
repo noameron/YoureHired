@@ -291,6 +291,41 @@ class TestTaskRegistry:
         # THEN all results are registered
         assert len(registry._active["session-1"]) == 100
 
+    def test_is_cancelled_returns_false_for_unknown_session(self):
+        # GIVEN a fresh registry
+        registry = TaskRegistry()
+
+        # WHEN checking if an unknown session is cancelled
+        result = registry.is_cancelled("session-1")
+
+        # THEN it returns False
+        assert result is False
+
+    def test_is_cancelled_returns_true_after_cancel_all(self):
+        # GIVEN a registry with a result that gets cancelled
+        registry = TaskRegistry()
+        result = MagicMock(is_complete=False)
+        registry.register("session-1", result)
+
+        # WHEN calling cancel_all
+        registry.cancel_all("session-1")
+
+        # THEN is_cancelled returns True
+        assert registry.is_cancelled("session-1") is True
+
+    def test_is_cancelled_returns_false_after_cleanup(self):
+        # GIVEN a session that has been cancelled
+        registry = TaskRegistry()
+        result = MagicMock(is_complete=False)
+        registry.register("session-1", result)
+        registry.cancel_all("session-1")
+
+        # WHEN calling cleanup
+        registry.cleanup("session-1")
+
+        # THEN is_cancelled returns False
+        assert registry.is_cancelled("session-1") is False
+
 
 class TestRunAgentStreamed:
     """Tests for run_agent_streamed function."""

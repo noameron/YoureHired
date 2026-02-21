@@ -5,33 +5,16 @@ from typing import Literal, Self
 from pydantic import BaseModel, Field, model_validator
 
 
-class DeveloperProfile(BaseModel):
-    """Developer profile for repository matching."""
-
-    languages: list[str] = Field(min_length=1)
-    topics: list[str] = Field(default_factory=list)
-    skill_level: Literal["beginner", "intermediate", "advanced"] = "intermediate"
-    goals: str = Field(default="", max_length=500)
-
-
-class DeveloperProfileResponse(BaseModel):
-    """API response for a stored developer profile."""
-
-    id: str
-    profile: DeveloperProfile
-    created_at: str
-    updated_at: str | None = None
-
-
 class SearchFilters(BaseModel):
     """Filters for GitHub repository search."""
 
     languages: list[str] = Field(min_length=1)
     min_stars: int = Field(default=10, ge=0)
-    max_stars: int = Field(default=50000, ge=0)
+    max_stars: int = Field(default=500000, ge=0)
     topics: list[str] = Field(default_factory=list)
     min_activity_date: str | None = Field(default=None)
     license: str | None = None
+    query: str = Field(default="", max_length=500)
 
     @model_validator(mode="after")
     def validate_star_range(self) -> Self:
@@ -50,21 +33,21 @@ class RepoMetadata(BaseModel):
     description: str | None = None
     primary_language: str | None = None
     languages: list[str] = Field(default_factory=list)
-    star_count: int = 0
-    fork_count: int = 0
-    open_issue_count: int = 0
+    star_count: int = Field(default=0, ge=0)
+    fork_count: int = Field(default=0, ge=0)
+    open_issue_count: int = Field(default=0, ge=0)
     topics: list[str] = Field(default_factory=list)
     license: str | None = None
     pushed_at: str | None = None
     created_at: str | None = None
-    good_first_issue_count: int = 0
-    help_wanted_count: int = 0
+    good_first_issue_count: int = Field(default=0, ge=0)
+    help_wanted_count: int = Field(default=0, ge=0)
 
 
 class AnalysisResult(BaseModel):
     """LLM analysis result for a single repository."""
 
-    repo: str
+    repo: str = Field(pattern=r"^[^/]+/[^/]+$")
     fit_score: float = Field(ge=0.0, le=10.0)
     reason: str
     contributions: list[str] = Field(default_factory=list)
@@ -72,18 +55,21 @@ class AnalysisResult(BaseModel):
     reject_reason: str | None = None
 
 
+SearchRunStatus = Literal["running", "completed", "failed", "cancelled", "partial"]
+
+
 class SearchRunResponse(BaseModel):
     """Response when starting a scout search run."""
 
     run_id: str
-    status: Literal["running", "completed", "failed", "cancelled", "partial"]
+    status: SearchRunStatus
 
 
 class ScoutSearchResult(BaseModel):
     """Complete result of a scout search run."""
 
     run_id: str
-    status: str
+    status: SearchRunStatus
     total_discovered: int = 0
     total_filtered: int = 0
     total_analyzed: int = 0

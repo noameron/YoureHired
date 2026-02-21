@@ -20,6 +20,11 @@ const routes: RouteRecordRaw[] = [
         next()
       }
     }
+  },
+  {
+    path: '/scout',
+    name: 'scout',
+    component: () => import('@/views/ScoutView.vue')
   }
 ]
 

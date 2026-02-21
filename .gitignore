@@ -52,6 +52,7 @@ celerybeat.pid
 *.sqlite3
 *.sqlite
 db.sqlite3
+data/
 
 # IDE
 .idea/
