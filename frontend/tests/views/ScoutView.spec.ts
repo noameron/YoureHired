@@ -2,11 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import ScoutView from '@/views/ScoutView.vue'
-import { useScoutStore } from '@/stores/scout'
 import * as scoutService from '@/services/scout'
 import type {
-  DeveloperProfile,
-  DeveloperProfileResponse,
   ScoutStreamEvent,
   ScoutSearchResult,
   AnalysisResult,
@@ -14,20 +11,6 @@ import type {
 } from '@/types/scout'
 
 vi.mock('@/services/scout')
-
-const mockProfile: DeveloperProfile = {
-  languages: ['Python', 'TypeScript'],
-  topics: ['web', 'api'],
-  skill_level: 'intermediate',
-  goals: 'Contribute to open source'
-}
-
-const mockProfileResponse: DeveloperProfileResponse = {
-  id: 'profile-123',
-  profile: mockProfile,
-  created_at: '2024-01-01T00:00:00Z',
-  updated_at: null
-}
 
 const mockRepo: RepoMetadata = {
   github_id: 12345,
@@ -84,55 +67,21 @@ describe('ScoutView', () => {
     vi.clearAllMocks()
   })
 
-  it('renders profile form when no profile exists', async () => {
-    // GIVEN
-    vi.mocked(scoutService.getProfile).mockResolvedValue(null)
+  it('shows search form directly on mount', async () => {
+    // GIVEN — no profile setup needed
 
     // WHEN
     const wrapper = mountScoutView()
-    await flushPromises()
-
-    // THEN
-    const profileForm = wrapper.find('[data-testid="profile-form"]')
-    expect(profileForm.exists()).toBe(true)
-    expect(wrapper.find('input[name="languages"]').exists()).toBe(true)
-    expect(wrapper.find('input[name="topics"]').exists()).toBe(true)
-    expect(wrapper.find('input[type="radio"][value="beginner"]').exists()).toBe(true)
-    expect(wrapper.find('input[type="radio"][value="intermediate"]').exists()).toBe(true)
-    expect(wrapper.find('input[type="radio"][value="advanced"]').exists()).toBe(true)
-    expect(wrapper.find('textarea[name="goals"]').exists()).toBe(true)
-    expect(wrapper.find('button').text()).toContain('Save Profile')
-  })
-
-  it('loads existing profile on mount', async () => {
-    // GIVEN
-    vi.mocked(scoutService.getProfile).mockResolvedValue(mockProfileResponse)
-
-    // WHEN
-    mountScoutView()
-    await flushPromises()
-
-    // THEN
-    const store = useScoutStore()
-    expect(store.profile).toEqual(mockProfileResponse)
-  })
-
-  it('shows filter form after profile saved', async () => {
-    // GIVEN
-    vi.mocked(scoutService.getProfile).mockResolvedValue(mockProfileResponse)
-
-    // WHEN
-    const wrapper = mountScoutView()
-    await flushPromises()
 
     // THEN
     const filterForm = wrapper.find('[data-testid="filter-form"]')
     expect(filterForm.exists()).toBe(true)
+    expect(wrapper.find('[data-testid="profile-form"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="profile-loading"]').exists()).toBe(false)
   })
 
-  it('search button triggers API call', async () => {
+  it('includes query field in search request', async () => {
     // GIVEN
-    vi.mocked(scoutService.getProfile).mockResolvedValue(mockProfileResponse)
     vi.mocked(scoutService.startSearch).mockResolvedValue({ run_id: 'run-123', status: 'running' })
     vi.mocked(scoutService.streamSearchProgress).mockReturnValue(
       createMockStream([
@@ -142,6 +91,36 @@ describe('ScoutView', () => {
 
     const wrapper = mountScoutView()
     await flushPromises()
+
+    // WHEN
+    const languageInput = wrapper.find('input[name="filter-languages"]')
+    await languageInput.setValue('Python')
+
+    const queryTextarea = wrapper.find('textarea[name="query"]')
+    await queryTextarea.setValue('Looking for beginner-friendly repos')
+
+    const filterForm = wrapper.find('[data-testid="filter-form"]')
+    await filterForm.trigger('submit')
+    await flushPromises()
+
+    // THEN
+    expect(scoutService.startSearch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: 'Looking for beginner-friendly repos'
+      })
+    )
+  })
+
+  it('search button triggers API call', async () => {
+    // GIVEN
+    vi.mocked(scoutService.startSearch).mockResolvedValue({ run_id: 'run-123', status: 'running' })
+    vi.mocked(scoutService.streamSearchProgress).mockReturnValue(
+      createMockStream([
+        { type: 'complete', data: mockSearchResult }
+      ])
+    )
+
+    const wrapper = mountScoutView()
 
     // WHEN
     const languageInput = wrapper.find('input[name="filter-languages"]')
@@ -157,7 +136,6 @@ describe('ScoutView', () => {
 
   it('displays progress during search', async () => {
     // GIVEN
-    vi.mocked(scoutService.getProfile).mockResolvedValue(mockProfileResponse)
     vi.mocked(scoutService.startSearch).mockResolvedValue({ run_id: 'run-123', status: 'running' })
     vi.mocked(scoutService.streamSearchProgress).mockReturnValue(
       createMockStream([
@@ -168,7 +146,6 @@ describe('ScoutView', () => {
     )
 
     const wrapper = mountScoutView()
-    await flushPromises()
 
     // WHEN
     const filterForm = wrapper.find('[data-testid="filter-form"]')
@@ -182,7 +159,6 @@ describe('ScoutView', () => {
 
   it('displays results after completion', async () => {
     // GIVEN
-    vi.mocked(scoutService.getProfile).mockResolvedValue(mockProfileResponse)
     vi.mocked(scoutService.startSearch).mockResolvedValue({ run_id: 'run-123', status: 'running' })
     vi.mocked(scoutService.streamSearchProgress).mockReturnValue(
       createMockStream([
@@ -191,7 +167,6 @@ describe('ScoutView', () => {
     )
 
     const wrapper = mountScoutView()
-    await flushPromises()
 
     // WHEN
     const filterForm = wrapper.find('[data-testid="filter-form"]')
@@ -205,7 +180,6 @@ describe('ScoutView', () => {
 
   it('cancel button aborts stream and calls cancelSearch', async () => {
     // GIVEN
-    vi.mocked(scoutService.getProfile).mockResolvedValue(mockProfileResponse)
     vi.mocked(scoutService.startSearch).mockResolvedValue({ run_id: 'run-123', status: 'running' })
     vi.mocked(scoutService.cancelSearch).mockResolvedValue(undefined)
 
@@ -216,7 +190,6 @@ describe('ScoutView', () => {
     vi.mocked(scoutService.streamSearchProgress).mockReturnValue(longRunningStream())
 
     const wrapper = mountScoutView()
-    await flushPromises()
 
     const filterForm = wrapper.find('[data-testid="filter-form"]')
     await filterForm.trigger('submit')
@@ -233,7 +206,6 @@ describe('ScoutView', () => {
 
   it('shows error message on search failure', async () => {
     // GIVEN
-    vi.mocked(scoutService.getProfile).mockResolvedValue(mockProfileResponse)
     vi.mocked(scoutService.startSearch).mockResolvedValue({ run_id: 'run-123', status: 'running' })
     vi.mocked(scoutService.streamSearchProgress).mockReturnValue(
       createMockStream([
@@ -242,7 +214,6 @@ describe('ScoutView', () => {
     )
 
     const wrapper = mountScoutView()
-    await flushPromises()
 
     // WHEN
     const filterForm = wrapper.find('[data-testid="filter-form"]')
@@ -263,7 +234,6 @@ describe('ScoutView', () => {
       repos: []
     }
 
-    vi.mocked(scoutService.getProfile).mockResolvedValue(mockProfileResponse)
     vi.mocked(scoutService.startSearch).mockResolvedValue({ run_id: 'run-123', status: 'running' })
     vi.mocked(scoutService.streamSearchProgress).mockReturnValue(
       createMockStream([
@@ -272,7 +242,6 @@ describe('ScoutView', () => {
     )
 
     const wrapper = mountScoutView()
-    await flushPromises()
 
     // WHEN
     const filterForm = wrapper.find('[data-testid="filter-form"]')
@@ -290,7 +259,6 @@ describe('ScoutView', () => {
       warnings: ['Rate limit approaching', 'Some repositories skipped']
     }
 
-    vi.mocked(scoutService.getProfile).mockResolvedValue(mockProfileResponse)
     vi.mocked(scoutService.startSearch).mockResolvedValue({ run_id: 'run-123', status: 'running' })
     vi.mocked(scoutService.streamSearchProgress).mockReturnValue(
       createMockStream([
@@ -299,7 +267,6 @@ describe('ScoutView', () => {
     )
 
     const wrapper = mountScoutView()
-    await flushPromises()
 
     // WHEN
     const filterForm = wrapper.find('[data-testid="filter-form"]')
@@ -313,92 +280,159 @@ describe('ScoutView', () => {
     expect(warningsBanner.text()).toContain('Some repositories skipped')
   })
 
-  it('shows loading spinner while profile loads', async () => {
-    // GIVEN — getProfile never resolves during this check
-    vi.mocked(scoutService.getProfile).mockReturnValue(new Promise(() => {}))
+  it('cancel button replaces Search Repos button when searching', async () => {
+    // GIVEN
+    vi.mocked(scoutService.startSearch).mockResolvedValue({ run_id: 'run-123', status: 'running' })
+
+    const longRunningStream = async function* (): AsyncGenerator<ScoutStreamEvent> {
+      yield { type: 'status', message: 'Processing...', phase: 'discovering' }
+      await new Promise(resolve => setTimeout(resolve, 10000))
+    }
+    vi.mocked(scoutService.streamSearchProgress).mockReturnValue(longRunningStream())
+
+    const wrapper = mountScoutView()
+
+    // WHEN — start search
+    const filterForm = wrapper.find('[data-testid="filter-form"]')
+    await filterForm.trigger('submit')
+    await flushPromises()
+
+    // THEN — cancel button replaces Search Repos button
+    const cancelButton = filterForm.find('[data-testid="cancel-search"]')
+    expect(cancelButton.exists()).toBe(true)
+    expect(cancelButton.classes()).toContain('btn-danger')
+    expect(cancelButton.text()).toBe('Cancel Search')
+
+    const searchButton = filterForm.find('button[type="submit"]')
+    expect(searchButton.exists()).toBe(false)
+  })
+
+  it('Search Repos button shown when not searching', async () => {
+    // GIVEN
 
     // WHEN
     const wrapper = mountScoutView()
-    await flushPromises()
 
-    // THEN
-    expect(wrapper.find('[data-testid="profile-loading"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="profile-form"]').exists()).toBe(false)
+    // THEN — Search Repos button is present, cancel button is not
+    const filterForm = wrapper.find('[data-testid="filter-form"]')
+    const searchButton = filterForm.find('button[type="submit"]')
+    expect(searchButton.exists()).toBe(true)
+    expect(searchButton.text()).toContain('Search Repos')
+
+    const cancelButton = filterForm.find('[data-testid="cancel-search"]')
+    expect(cancelButton.exists()).toBe(false)
   })
 
-  it('shows validation errors when submitting empty profile', async () => {
+  it('handleCancel captures run_id before resetSearch clears it', async () => {
     // GIVEN
-    vi.mocked(scoutService.getProfile).mockResolvedValue(null)
+    vi.mocked(scoutService.startSearch).mockResolvedValue({ run_id: 'run-456', status: 'running' })
+    vi.mocked(scoutService.cancelSearch).mockResolvedValue(undefined)
+
+    const longRunningStream = async function* (): AsyncGenerator<ScoutStreamEvent> {
+      yield { type: 'status', message: 'Processing...', phase: 'discovering' }
+      await new Promise(resolve => setTimeout(resolve, 10000))
+    }
+    vi.mocked(scoutService.streamSearchProgress).mockReturnValue(longRunningStream())
+
+    const wrapper = mountScoutView()
+
+    const filterForm = wrapper.find('[data-testid="filter-form"]')
+    await filterForm.trigger('submit')
+    await flushPromises()
+
+    // WHEN — click cancel (which calls resetSearch that clears currentRunId)
+    const cancelButton = wrapper.find('[data-testid="cancel-search"]')
+    await cancelButton.trigger('click')
+    await flushPromises()
+
+    // THEN — cancelSearch was called with the correct run_id despite resetSearch clearing it
+    expect(scoutService.cancelSearch).toHaveBeenCalledWith('run-456')
+  })
+
+  it('includes all filter fields in search request', async () => {
+    // GIVEN
+    vi.mocked(scoutService.startSearch).mockResolvedValue({ run_id: 'run-789', status: 'running' })
+    vi.mocked(scoutService.streamSearchProgress).mockReturnValue(
+      createMockStream([
+        { type: 'complete', data: mockSearchResult }
+      ])
+    )
+
     const wrapper = mountScoutView()
     await flushPromises()
 
-    // WHEN — submit with empty fields
-    const form = wrapper.find('[data-testid="profile-form"] form')
-    await form.trigger('submit')
+    // WHEN — fill in all filter fields
+    await wrapper.find('input[name="filter-languages"]').setValue('Python,Go')
+    await wrapper.find('input[name="filter-topics"]').setValue('api,web')
+    await wrapper.find('input[name="min-stars"]').setValue('100')
+    await wrapper.find('input[name="max-stars"]').setValue('10000')
+    await wrapper.find('input[name="activity-date"]').setValue('2024-01-01')
+    await wrapper.find('select[name="license"]').setValue('mit')
+    await wrapper.find('textarea[name="query"]').setValue('Looking for API frameworks')
+
+    const filterForm = wrapper.find('[data-testid="filter-form"]')
+    await filterForm.trigger('submit')
     await flushPromises()
 
-    // THEN
-    expect(wrapper.text()).toContain('At least one language is required')
-    expect(wrapper.text()).toContain('Goals are required')
-    expect(scoutService.saveProfile).not.toHaveBeenCalled()
+    // THEN — all filters are sent to API
+    expect(scoutService.startSearch).toHaveBeenCalledWith({
+      languages: ['Python', 'Go'],
+      topics: ['api', 'web'],
+      min_stars: 100,
+      max_stars: 10000,
+      min_activity_date: '2024-01-01',
+      license: 'mit',
+      query: 'Looking for API frameworks'
+    })
   })
 
-  it('clears language validation error when user types a language', async () => {
+  it('handles startSearch API failure gracefully', async () => {
     // GIVEN
-    vi.mocked(scoutService.getProfile).mockResolvedValue(null)
-    const wrapper = mountScoutView()
-    await flushPromises()
+    vi.mocked(scoutService.startSearch).mockRejectedValue(new Error('Network timeout'))
 
-    const form = wrapper.find('[data-testid="profile-form"] form')
-    await form.trigger('submit')
-    await flushPromises()
-    expect(wrapper.text()).toContain('At least one language is required')
+    const wrapper = mountScoutView()
 
     // WHEN
-    await wrapper.find('input[name="languages"]').setValue('Python')
+    const filterForm = wrapper.find('[data-testid="filter-form"]')
+    await filterForm.trigger('submit')
     await flushPromises()
 
-    // THEN
-    expect(wrapper.text()).not.toContain('At least one language is required')
+    // THEN — error message displayed
+    const errorMessage = wrapper.find('[data-testid="search-error"]')
+    expect(errorMessage.exists()).toBe(true)
+    expect(errorMessage.text()).toContain('Network timeout')
   })
 
-  it('clears goals validation error when user types goals', async () => {
-    // GIVEN
-    vi.mocked(scoutService.getProfile).mockResolvedValue(null)
+  it('clears previous results when starting new search', async () => {
+    // GIVEN — previous search completed
+    vi.mocked(scoutService.startSearch).mockResolvedValue({ run_id: 'run-first', status: 'running' })
+    vi.mocked(scoutService.streamSearchProgress).mockReturnValue(
+      createMockStream([
+        { type: 'complete', data: mockSearchResult }
+      ])
+    )
+
     const wrapper = mountScoutView()
+    const filterForm = wrapper.find('[data-testid="filter-form"]')
+    await filterForm.trigger('submit')
     await flushPromises()
 
-    const form = wrapper.find('[data-testid="profile-form"] form')
-    await form.trigger('submit')
-    await flushPromises()
-    expect(wrapper.text()).toContain('Goals are required')
+    // Verify first results exist
+    expect(wrapper.findAllComponents({ name: 'ScoutResultCard' }).length).toBeGreaterThan(0)
 
-    // WHEN
-    await wrapper.find('textarea[name="goals"]').setValue('Learn open source')
-    await flushPromises()
+    // WHEN — start second search
+    vi.mocked(scoutService.startSearch).mockResolvedValue({ run_id: 'run-second', status: 'running' })
+    vi.mocked(scoutService.streamSearchProgress).mockReturnValue(
+      createMockStream([
+        { type: 'status', message: 'Searching...', phase: 'discovering' }
+      ])
+    )
 
-    // THEN
-    expect(wrapper.text()).not.toContain('Goals are required')
-  })
-
-  it('shows save error when profile save fails', async () => {
-    // GIVEN
-    vi.mocked(scoutService.getProfile).mockResolvedValue(null)
-    vi.mocked(scoutService.saveProfile).mockRejectedValue(new Error('Network error'))
-    const wrapper = mountScoutView()
+    await filterForm.trigger('submit')
     await flushPromises()
 
-    await wrapper.find('input[name="languages"]').setValue('Python')
-    await wrapper.find('textarea[name="goals"]').setValue('Contribute')
-
-    // WHEN
-    const form = wrapper.find('[data-testid="profile-form"] form')
-    await form.trigger('submit')
-    await flushPromises()
-
-    // THEN
-    const saveError = wrapper.find('[data-testid="profile-save-error"]')
-    expect(saveError.exists()).toBe(true)
-    expect(saveError.text()).toContain('Network error')
+    // THEN — results are cleared during search
+    const progressIndicator = wrapper.find('[data-testid="search-progress"]')
+    expect(progressIndicator.exists()).toBe(true)
   })
 })

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { saveProfile, getProfile, startSearch, streamSearchProgress, getSearchResults, cancelSearch } from '@/services/scout'
+import { startSearch, streamSearchProgress, getSearchResults, cancelSearch } from '@/services/scout'
 import type { ScoutStreamEvent } from '@/types/scout'
 
 declare const global: { fetch: typeof fetch }
@@ -29,92 +29,6 @@ async function collectEvents(runId: string, signal?: AbortSignal): Promise<Scout
   }
   return events
 }
-
-describe('saveProfile', () => {
-  const originalFetch = global.fetch
-
-  beforeEach(() => {
-    vi.resetAllMocks()
-  })
-
-  afterEach(() => {
-    global.fetch = originalFetch
-  })
-
-  it('sends POST to /api/scout/profile with JSON body and returns id on 200', async () => {
-    // GIVEN
-    const profileData = {
-      languages: ['TypeScript', 'Python'],
-      topics: [],
-      skill_level: 'intermediate',
-      goals: 'Find open source projects to contribute to'
-    }
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ id: 'default' })
-    })
-
-    // WHEN
-    const result = await saveProfile(profileData)
-
-    // THEN
-    expect(global.fetch).toHaveBeenCalledWith('/api/scout/profile', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(profileData)
-    })
-    expect(result).toEqual({ id: 'default' })
-  })
-})
-
-describe('getProfile', () => {
-  const originalFetch = global.fetch
-
-  beforeEach(() => {
-    vi.resetAllMocks()
-  })
-
-  afterEach(() => {
-    global.fetch = originalFetch
-  })
-
-  it('sends GET to /api/scout/profile and returns profile on 200', async () => {
-    // GIVEN
-    const mockProfile = {
-      profile_id: 'default',
-      languages: ['TypeScript', 'Python'],
-      skill_level: 'intermediate',
-      goals: 'Find open source projects to contribute to'
-    }
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => mockProfile
-    })
-
-    // WHEN
-    const result = await getProfile()
-
-    // THEN
-    expect(global.fetch).toHaveBeenCalledWith('/api/scout/profile')
-    expect(result).toEqual(mockProfile)
-  })
-
-  it('returns null on 404 response', async () => {
-    // GIVEN
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 404,
-      json: async () => ({ detail: 'Not found' })
-    })
-
-    // WHEN
-    const result = await getProfile()
-
-    // THEN
-    expect(result).toBeNull()
-  })
-})
 
 describe('startSearch', () => {
   const originalFetch = global.fetch
