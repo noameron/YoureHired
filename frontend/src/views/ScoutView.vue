@@ -1,34 +1,25 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useScoutStore } from '@/stores/scout'
 import {
-  getProfile,
-  saveProfile,
   startSearch,
   streamSearchProgress,
   cancelSearch,
 } from '@/services/scout'
 import { parseCommaSeparated } from '@/utils/string'
-import type { DeveloperProfile, SkillLevel, AnalysisResult, RepoMetadata } from '@/types/scout'
+import type { AnalysisResult, RepoMetadata } from '@/types/scout'
 import ScoutResultCard from '@/components/ScoutResultCard.vue'
 
 const store = useScoutStore()
-
-// Profile form state
-const profileLanguages = ref('')
-const profileTopics = ref('')
-const profileSkillLevel = ref<SkillLevel>('intermediate')
-const profileGoals = ref('')
-const profileErrors = ref<Record<string, string>>({})
-const profileSaveError = ref<string | null>(null)
 
 // Filter form state
 const filterLanguages = ref('')
 const filterTopics = ref('')
 const filterMinStars = ref(10)
-const filterMaxStars = ref(50000)
+const filterMaxStars = ref(500000)
 const filterActivityDate = ref('')
 const filterLicense = ref('')
+const filterQuery = ref('')
 
 let abortController: AbortController | null = null
 
@@ -44,60 +35,6 @@ const resultPairs = computed(() => {
   return pairs
 })
 
-// Clear validation errors as user fixes fields
-watch(profileLanguages, (val) => {
-  if (parseCommaSeparated(val).length > 0) {
-    delete profileErrors.value.languages
-  }
-})
-
-watch(profileGoals, (val) => {
-  if (val.trim()) {
-    delete profileErrors.value.goals
-  }
-})
-
-onMounted(async () => {
-  store.profileLoading = true
-  try {
-    const existing = await getProfile()
-    if (existing) store.profile = existing
-  } finally {
-    store.profileLoading = false
-  }
-})
-
-async function handleSaveProfile() {
-  profileErrors.value = {}
-  profileSaveError.value = null
-
-  const languages = parseCommaSeparated(profileLanguages.value)
-  const topics = parseCommaSeparated(profileTopics.value)
-
-  if (languages.length === 0) {
-    profileErrors.value.languages = 'At least one language is required'
-  }
-  if (!profileGoals.value.trim()) {
-    profileErrors.value.goals = 'Goals are required'
-  }
-  if (Object.keys(profileErrors.value).length > 0) return
-
-  const profile: DeveloperProfile = {
-    languages,
-    topics,
-    skill_level: profileSkillLevel.value,
-    goals: profileGoals.value,
-  }
-
-  try {
-    await saveProfile(profile)
-    const saved = await getProfile()
-    if (saved) store.profile = saved
-  } catch (err) {
-    profileSaveError.value = err instanceof Error ? err.message : 'Failed to save profile'
-  }
-}
-
 async function handleSearch() {
   store.resetSearch()
   store.isSearching = true
@@ -111,6 +48,7 @@ async function handleSearch() {
     topics: parseCommaSeparated(filterTopics.value),
     min_activity_date: filterActivityDate.value || null,
     license: filterLicense.value || null,
+    query: filterQuery.value,
   }
 
   try {
@@ -138,8 +76,9 @@ async function handleSearch() {
 }
 
 function handleCancel() {
+  const runId = store.currentRunId
   abortController?.abort()
-  if (store.currentRunId) cancelSearch(store.currentRunId)
+  if (runId) cancelSearch(runId)
   store.resetSearch()
 }
 </script>
@@ -150,136 +89,8 @@ function handleCancel() {
       GitHub Scout
     </h1>
 
-    <!-- Profile Loading -->
-    <div
-      v-if="store.profileLoading"
-      data-testid="profile-loading"
-      class="profile-loading"
-    >
-      <div class="spinner" />
-      <p class="status-message">
-        Loading profile...
-      </p>
-    </div>
-
-    <!-- Profile Form -->
-    <div
-      v-if="!store.hasProfile && !store.profileLoading"
-      data-testid="profile-form"
-      class="profile-section card"
-    >
-      <h2>Developer Profile</h2>
-      <form @submit.prevent="handleSaveProfile">
-        <div class="form-group">
-          <label for="profile-languages">Languages (comma-separated)</label>
-          <input
-            id="profile-languages"
-            v-model="profileLanguages"
-            name="languages"
-            type="text"
-            class="input"
-            :class="{ 'input-error': profileErrors.languages }"
-            placeholder="Python, TypeScript, Go"
-          >
-          <p
-            v-if="profileErrors.languages"
-            class="field-error"
-          >
-            {{ profileErrors.languages }}
-          </p>
-        </div>
-        <div class="form-group">
-          <label for="profile-topics">Topics (comma-separated)</label>
-          <input
-            id="profile-topics"
-            v-model="profileTopics"
-            name="topics"
-            type="text"
-            class="input"
-            placeholder="web, api, machine-learning"
-          >
-        </div>
-        <div class="form-group">
-          <label>Skill Level</label>
-          <div class="radio-group">
-            <label>
-              <input
-                v-model="profileSkillLevel"
-                type="radio"
-                name="skill_level"
-                value="beginner"
-              >
-              Beginner
-            </label>
-            <label>
-              <input
-                v-model="profileSkillLevel"
-                type="radio"
-                name="skill_level"
-                value="intermediate"
-              >
-              Intermediate
-            </label>
-            <label>
-              <input
-                v-model="profileSkillLevel"
-                type="radio"
-                name="skill_level"
-                value="advanced"
-              >
-              Advanced
-            </label>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="profile-goals">Goals</label>
-          <textarea
-            id="profile-goals"
-            v-model="profileGoals"
-            name="goals"
-            class="input"
-            :class="{ 'input-error': profileErrors.goals }"
-            placeholder="What are your open-source contribution goals?"
-            rows="3"
-          />
-          <p
-            v-if="profileErrors.goals"
-            class="field-error"
-          >
-            {{ profileErrors.goals }}
-          </p>
-        </div>
-        <p
-          v-if="profileSaveError"
-          data-testid="profile-save-error"
-          class="error-message"
-        >
-          {{ profileSaveError }}
-        </p>
-        <button
-          type="submit"
-          class="btn btn-primary"
-        >
-          Save Profile
-        </button>
-      </form>
-    </div>
-
-    <!-- Profile Summary -->
-    <div
-      v-if="store.hasProfile"
-      class="profile-summary card"
-    >
-      <h2>Your Profile</h2>
-      <p>Languages: {{ store.profile?.profile.languages.join(', ') }}</p>
-      <p>Topics: {{ store.profile?.profile.topics.join(', ') }}</p>
-      <p>Level: {{ store.profile?.profile.skill_level }}</p>
-      <p>Goals: {{ store.profile?.profile.goals }}</p>
-    </div>
-
     <!-- Filter Form -->
     <form
-      v-if="store.hasProfile"
       data-testid="filter-form"
       class="filter-section card"
       @submit.prevent="handleSearch"
@@ -367,12 +178,32 @@ function handleCancel() {
           </option>
         </select>
       </div>
+      <div class="form-group">
+        <label for="filter-query">What kind of repos are you looking for?</label>
+        <textarea
+          id="filter-query"
+          v-model="filterQuery"
+          name="query"
+          class="input"
+          placeholder="e.g. Beginner-friendly Python web frameworks with good documentation"
+          rows="2"
+        />
+      </div>
       <button
+        v-if="!store.isSearching"
         type="submit"
         class="btn btn-primary"
-        :disabled="store.isSearching"
       >
-        Search
+        Search Repos
+      </button>
+      <button
+        v-else
+        type="button"
+        data-testid="cancel-search"
+        class="btn btn-danger"
+        @click="handleCancel"
+      >
+        Cancel Search
       </button>
     </form>
 
@@ -392,15 +223,6 @@ function handleCancel() {
       <p class="status-message">
         {{ store.statusMessage }}
       </p>
-      <button
-        v-if="store.isSearching"
-        type="button"
-        data-testid="cancel-search"
-        class="btn btn-secondary"
-        @click="handleCancel"
-      >
-        Cancel
-      </button>
     </div>
 
     <!-- Error State -->

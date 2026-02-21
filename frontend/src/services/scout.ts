@@ -1,6 +1,4 @@
 import type {
-  DeveloperProfile,
-  DeveloperProfileResponse,
   SearchFilters,
   SearchRunResponse,
   ScoutSearchResult,
@@ -8,23 +6,6 @@ import type {
 } from '@/types/scout'
 
 const API_BASE = '/api'
-
-export async function saveProfile(profile: DeveloperProfile): Promise<{ id: string }> {
-  const response = await fetch(`${API_BASE}/scout/profile`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(profile),
-  })
-  if (!response.ok) throw new Error(`Failed to save profile: ${response.status}`)
-  return response.json()
-}
-
-export async function getProfile(): Promise<DeveloperProfileResponse | null> {
-  const response = await fetch(`${API_BASE}/scout/profile`)
-  if (response.status === 404) return null
-  if (!response.ok) throw new Error(`Failed to fetch profile: ${response.status}`)
-  return response.json()
-}
 
 export async function startSearch(filters: SearchFilters): Promise<SearchRunResponse> {
   const response = await fetch(`${API_BASE}/scout/search`, {

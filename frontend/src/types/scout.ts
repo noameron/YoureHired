@@ -1,19 +1,3 @@
-export type SkillLevel = 'beginner' | 'intermediate' | 'advanced'
-
-export interface DeveloperProfile {
-  languages: string[]
-  topics: string[]
-  skill_level: SkillLevel
-  goals: string
-}
-
-export interface DeveloperProfileResponse {
-  id: string
-  profile: DeveloperProfile
-  created_at: string
-  updated_at: string | null
-}
-
 export interface SearchFilters {
   languages: string[]
   min_stars: number
@@ -21,6 +5,7 @@ export interface SearchFilters {
   topics: string[]
   min_activity_date: string | null
   license: string | null
+  query: string
 }
 
 export interface RepoMetadata {
