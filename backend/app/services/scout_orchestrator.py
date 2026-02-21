@@ -27,7 +27,8 @@ def _status(message: str, phase: str) -> Event:
     return {"type": "status", "message": message, "phase": phase}
 
 
-def _cancelled() -> Event:
+def _cancelled_event() -> Event:
+    """Build the cancellation SSE event (distinct from _check_cancelled)."""
     return {"type": "status", "message": "Search cancelled", "status": "cancelled"}
 
 
@@ -38,9 +39,9 @@ def _error(message: str, phase: str | None = None) -> Event:
     return evt
 
 
-def _check_cancelled(session_id: str) -> None:
-    """Raise CancelledError if the session has been cancelled."""
-    if task_registry.is_cancelled(session_id):
+def _check_cancelled(run_id: str) -> None:
+    """Raise CancelledError if the run has been cancelled."""
+    if task_registry.is_cancelled(run_id):
         raise asyncio.CancelledError
 
 
@@ -98,9 +99,13 @@ async def _run_analysis(
     filters: SearchFilters,
     capped: list[RepoMetadata],
     readmes: list[str | None],
-    session_id: str,
+    run_id: str,
 ) -> AsyncGenerator[tuple[list[AnalysisResult], Event], None]:
-    """Run batched analysis concurrently, yielding (cumulative_results, event)."""
+    """Run batched analysis concurrently, yielding (cumulative_results, event).
+
+    Uses asyncio.wait instead of as_completed to avoid RuntimeWarning
+    from orphaned wrapper coroutines on cancellation.
+    """
     all_results: list[AnalysisResult] = []
     bs = settings.scout_batch_size
     total = len(capped)
@@ -109,48 +114,87 @@ async def _run_analysis(
     repo_batches = batch_repos(capped, bs)
     readme_batches = [readmes[i : i + bs] for i in range(0, total, bs)]
 
-    tasks = [
-        asyncio.create_task(analyze_batch(filters, rb, rmb, session_id))
+    pending: set[asyncio.Task[list[AnalysisResult]]] = {
+        asyncio.create_task(analyze_batch(filters, rb, rmb, run_id))
         for rb, rmb in zip(repo_batches, readme_batches)
-    ]
+    }
 
     try:
-        for coro in asyncio.as_completed(tasks):
-            _check_cancelled(session_id)
-            try:
-                batch_results = await coro
-                all_results.extend(batch_results)
-                analyzed += len(batch_results)
-                yield all_results, {
-                    "type": "progress",
-                    "message": f"Analyzed {analyzed}/{total} repos...",
-                    "phase": "analyzing",
-                }
-            except TimeoutError:
-                analyzed = min(analyzed + bs, total)
-                yield all_results, {
-                    "type": "error",
-                    "message": f"Batch timed out ({analyzed}/{total})",
-                    "phase": "analyzing",
-                }
-            except Exception as exc:
-                logger.exception("Batch analysis failed: %s", exc)
-                analyzed = min(analyzed + bs, total)
-                yield all_results, {
-                    "type": "error",
-                    "message": f"Batch failed ({analyzed}/{total})",
-                    "phase": "analyzing",
-                }
+        while pending:
+            _check_cancelled(run_id)
+            done, pending = await asyncio.wait(
+                pending, return_when=asyncio.FIRST_COMPLETED
+            )
+            for task in done:
+                try:
+                    batch_results = task.result()
+                    all_results.extend(batch_results)
+                    analyzed += len(batch_results)
+                    yield all_results, {
+                        "type": "progress",
+                        "message": f"Analyzed {analyzed}/{total} repos...",
+                        "phase": "analyzing",
+                    }
+                except TimeoutError:
+                    analyzed = min(analyzed + bs, total)
+                    yield all_results, {
+                        "type": "error",
+                        "message": f"Batch timed out ({analyzed}/{total})",
+                        "phase": "analyzing",
+                    }
+                except Exception as exc:
+                    logger.exception("Batch analysis failed: %s", exc)
+                    analyzed = min(analyzed + bs, total)
+                    yield all_results, {
+                        "type": "error",
+                        "message": f"Batch failed ({analyzed}/{total})",
+                        "phase": "analyzing",
+                    }
     finally:
-        for task in tasks:
-            if not task.done():
-                task.cancel()
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
+
+
+async def _build_completion_event(
+    run_id: str,
+    repos: list[RepoMetadata],
+    filtered: list[RepoMetadata],
+    capped: list[RepoMetadata],
+    all_results: list[AnalysisResult],
+    warnings: list[str],
+) -> Event:
+    """Persist results and build the completion SSE event."""
+    await github_repos_db.save_analysis_results(run_id, all_results)
+    status: SearchRunStatus = (
+        "partial" if len(all_results) < len(capped) else "completed"
+    )
+    await github_repos_db.update_search_run(
+        run_id, status, len(repos), len(filtered), len(all_results)
+    )
+
+    visible = sorted(
+        [r for r in all_results if not r.reject],
+        key=lambda r: r.fit_score,
+        reverse=True,
+    )
+    result = ScoutSearchResult(
+        run_id=run_id,
+        status=status,
+        total_discovered=len(repos),
+        total_filtered=len(filtered),
+        total_analyzed=len(all_results),
+        results=visible,
+        repos=capped,
+        warnings=warnings,
+    )
+    return {"type": "complete", "data": result.model_dump()}
 
 
 async def scout_search_stream(
     filters: SearchFilters,
     run_id: str,
-    session_id: str,
 ) -> AsyncGenerator[Event, None]:
     """Stream the full scout pipeline."""
     try:
@@ -164,7 +208,7 @@ async def scout_search_stream(
             await github_repos_db.update_search_run(run_id, "completed", 0, 0, 0)
             return
 
-        _check_cancelled(session_id)
+        _check_cancelled(run_id)
 
         yield _status("Filtering candidates...", "filtering")
         filtered, capped = _filter_repos(repos, filters)
@@ -177,48 +221,27 @@ async def scout_search_stream(
             )
             return
 
-        _check_cancelled(session_id)
+        _check_cancelled(run_id)
 
         yield _status(f"Fetching READMEs for {len(capped)} repos...", "filtering")
         readmes = await _fetch_readmes(client, capped)
 
-        _check_cancelled(session_id)
+        _check_cancelled(run_id)
 
         yield _status("Starting AI analysis...", "analyzing")
         all_results: list[AnalysisResult] = []
-        async for results, event in _run_analysis(filters, capped, readmes, session_id):
+        async for results, event in _run_analysis(filters, capped, readmes, run_id):
             all_results = results
             yield event
 
-        await github_repos_db.save_analysis_results(run_id, all_results)
-        status: SearchRunStatus = (
-            "partial" if len(all_results) < len(capped) else "completed"
+        yield await _build_completion_event(
+            run_id, repos, filtered, capped, all_results, warnings
         )
-        await github_repos_db.update_search_run(
-            run_id, status, len(repos), len(filtered), len(all_results)
-        )
-
-        visible = sorted(
-            [r for r in all_results if not r.reject],
-            key=lambda r: r.fit_score,
-            reverse=True,
-        )
-        result = ScoutSearchResult(
-            run_id=run_id,
-            status=status,
-            total_discovered=len(repos),
-            total_filtered=len(filtered),
-            total_analyzed=len(all_results),
-            results=visible,
-            repos=capped,
-            warnings=warnings,
-        )
-        yield {"type": "complete", "data": result.model_dump()}
 
     except asyncio.CancelledError:
         logger.info("Scout search cancelled for run %s", run_id)
         await github_repos_db.update_search_run(run_id, "cancelled", 0, 0, 0)
-        yield _cancelled()
+        yield _cancelled_event()
     except Exception as e:
         logger.exception("Scout search failed for run %s", run_id)
         await github_repos_db.update_search_run(run_id, "failed", 0, 0, 0)

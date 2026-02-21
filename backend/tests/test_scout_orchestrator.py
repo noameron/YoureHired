@@ -94,7 +94,6 @@ async def test_full_successful_pipeline():
 
     filters = make_filters()
     run_id = "test-run-123"
-    session_id = "sess-456"
 
     repo1 = make_repo(owner="org1", name="repo1")
     repo2 = make_repo(owner="org2", name="repo2")
@@ -135,7 +134,7 @@ async def test_full_successful_pipeline():
         mock_settings.scout_batch_size = 5
 
         # WHEN
-        events = await collect_events(scout_search_stream(filters, run_id, session_id))
+        events = await collect_events(scout_search_stream(filters, run_id))
 
         # THEN
         # Verify we got events for all phases
@@ -179,7 +178,6 @@ async def test_empty_discovery_yields_error():
 
     filters = make_filters()
     run_id = "test-run-123"
-    session_id = "sess-456"
 
     with (
         patch("app.services.scout_orchestrator.create_github_client") as mock_create_client,
@@ -193,7 +191,7 @@ async def test_empty_discovery_yields_error():
         mock_db.update_search_run = AsyncMock()
 
         # WHEN
-        events = await collect_events(scout_search_stream(filters, run_id, session_id))
+        events = await collect_events(scout_search_stream(filters, run_id))
 
         # THEN
         # Should have error event about no repositories found
@@ -217,7 +215,6 @@ async def test_all_repos_filtered_out_yields_error():
 
     filters = make_filters()
     run_id = "test-run-123"
-    session_id = "sess-456"
 
     repos = [make_repo(owner="org1", name="repo1"), make_repo(owner="org2", name="repo2")]
 
@@ -236,7 +233,7 @@ async def test_all_repos_filtered_out_yields_error():
         mock_db.update_search_run = AsyncMock()
 
         # WHEN
-        events = await collect_events(scout_search_stream(filters, run_id, session_id))
+        events = await collect_events(scout_search_stream(filters, run_id))
 
         # THEN
         # Should have error event about filtering
@@ -260,7 +257,6 @@ async def test_partial_batch_failure_yields_partial_status():
 
     filters = make_filters()
     run_id = "test-run-123"
-    session_id = "sess-456"
 
     # 4 repos split into 2 batches of 2 each
     repos = [
@@ -303,7 +299,7 @@ async def test_partial_batch_failure_yields_partial_status():
         mock_settings.scout_batch_size = 2
 
         # WHEN
-        events = await collect_events(scout_search_stream(filters, run_id, session_id))
+        events = await collect_events(scout_search_stream(filters, run_id))
 
         # THEN
         # Should complete but with partial status (1 result < 4 capped repos)
@@ -326,7 +322,6 @@ async def test_exception_in_discovery_yields_error():
 
     filters = make_filters()
     run_id = "test-run-123"
-    session_id = "sess-456"
 
     with (
         patch("app.services.scout_orchestrator.create_github_client") as mock_create_client,
@@ -340,7 +335,7 @@ async def test_exception_in_discovery_yields_error():
         mock_db.update_search_run = AsyncMock()
 
         # WHEN
-        events = await collect_events(scout_search_stream(filters, run_id, session_id))
+        events = await collect_events(scout_search_stream(filters, run_id))
 
         # THEN
         # Should have error event
@@ -363,7 +358,6 @@ async def test_cancellation_after_discovery_exits_early():
 
     filters = make_filters()
     run_id = "test-run-123"
-    session_id = "sess-456"
 
     repos = [make_repo(owner="org1", name="repo1")]
 
@@ -385,7 +379,7 @@ async def test_cancellation_after_discovery_exits_early():
         mock_db.update_search_run = AsyncMock()
 
         # WHEN
-        events = await collect_events(scout_search_stream(filters, run_id, session_id))
+        events = await collect_events(scout_search_stream(filters, run_id))
 
         # THEN
         # Should have a cancelled status event
@@ -414,7 +408,6 @@ async def test_cancellation_after_filtering_exits_early():
 
     filters = make_filters()
     run_id = "test-run-123"
-    session_id = "sess-456"
 
     repos = [make_repo(owner="org1", name="repo1")]
 
@@ -438,7 +431,7 @@ async def test_cancellation_after_filtering_exits_early():
         mock_db.update_search_run = AsyncMock()
 
         # WHEN
-        events = await collect_events(scout_search_stream(filters, run_id, session_id))
+        events = await collect_events(scout_search_stream(filters, run_id))
 
         # THEN
         # Should have filtering phase but then cancelled
@@ -470,7 +463,6 @@ async def test_cancellation_after_readme_fetch_exits_early():
 
     filters = make_filters()
     run_id = "test-run-123"
-    session_id = "sess-456"
 
     repos = [make_repo(owner="org1", name="repo1")]
 
@@ -499,7 +491,7 @@ async def test_cancellation_after_readme_fetch_exits_early():
         mock_db.update_search_run = AsyncMock()
 
         # WHEN
-        events = await collect_events(scout_search_stream(filters, run_id, session_id))
+        events = await collect_events(scout_search_stream(filters, run_id))
 
         # THEN
         # Should have README fetch but then cancelled
@@ -528,7 +520,6 @@ async def test_run_analysis_cancels_remaining_tasks_on_cancellation():
 
     filters = make_filters()
     run_id = "test-run-123"
-    session_id = "sess-456"
 
     # 4 repos split into 2 batches
     repos = [
@@ -584,7 +575,7 @@ async def test_run_analysis_cancels_remaining_tasks_on_cancellation():
         mock_settings.scout_batch_size = 2
 
         # WHEN
-        events = await collect_events(scout_search_stream(filters, run_id, session_id))
+        events = await collect_events(scout_search_stream(filters, run_id))
 
         # THEN
         # Should have cancelled status event
