@@ -530,6 +530,24 @@ button:focus-visible {
   box-shadow: var(--shadow-sm);
 }
 
+/* Danger button — destructive / cancel actions */
+.btn-danger {
+  background-color: var(--color-error-bg);
+  color: var(--color-error-text);
+  border: 1px solid rgba(160, 64, 48, 0.3);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: rgba(160, 64, 48, 0.3);
+  border-color: var(--color-error-text);
+  box-shadow: var(--shadow-sm);
+}
+
 /* Input base — recessed / engraved effect */
 .input {
   width: 100%;
