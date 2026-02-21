@@ -35,6 +35,10 @@ class TaskRegistry:
                 except ValueError:
                     pass  # Already removed
 
+    def is_cancelled(self, session_id: str) -> bool:
+        with self._lock:
+            return session_id in self._cancelled
+
     def cancel_all(self, session_id: str) -> None:
         with self._lock:
             self._cancelled.add(session_id)

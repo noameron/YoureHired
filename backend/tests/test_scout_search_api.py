@@ -8,8 +8,6 @@ from httpx import ASGITransport, AsyncClient
 
 from app.main import app
 from app.schemas.scout import (
-    DeveloperProfile,
-    DeveloperProfileResponse,
     ScoutSearchResult,
     SearchRunResponse,
 )
@@ -32,24 +30,11 @@ def _reset_rate_limits():
     _ip_search_counts.clear()
 
 
-def _make_profile_response() -> DeveloperProfileResponse:
-    return DeveloperProfileResponse(
-        id="default",
-        profile=DeveloperProfile(
-            languages=["Python"], topics=["web"], skill_level="intermediate", goals="contribute"
-        ),
-        created_at="2024-01-01T00:00:00Z",
-    )
-
-
 async def test_start_search_returns_201(client: AsyncClient):
-    # GIVEN a saved developer profile
+    # GIVEN valid search filters
     filters = {"languages": ["Python"], "min_stars": 10, "max_stars": 5000}
 
-    with (
-        patch("app.api.scout.github_repos_db") as mock_db,
-    ):
-        mock_db.get_profile = AsyncMock(return_value=_make_profile_response())
+    with patch("app.api.scout.github_repos_db") as mock_db:
         mock_db.create_search_run = AsyncMock(return_value="run-123")
 
         # WHEN starting a search
@@ -60,21 +45,6 @@ async def test_start_search_returns_201(client: AsyncClient):
     data = response.json()
     assert data["run_id"] == "run-123"
     assert data["status"] == "running"
-
-
-async def test_start_search_without_profile_returns_400(client: AsyncClient):
-    # GIVEN no developer profile saved
-    filters = {"languages": ["Python"]}
-
-    with patch("app.api.scout.github_repos_db") as mock_db:
-        mock_db.get_profile = AsyncMock(return_value=None)
-
-        # WHEN starting a search
-        response = await client.post("/api/scout/search", json=filters)
-
-    # THEN returns 400
-    assert response.status_code == 400
-    assert "profile" in response.json()["detail"].lower()
 
 
 async def test_start_search_concurrent_returns_429(client: AsyncClient):
@@ -103,11 +73,8 @@ async def test_start_search_rate_limit_returns_429(client: AsyncClient):
 
     filters = {"languages": ["Python"]}
 
-    with patch("app.api.scout.github_repos_db") as mock_db:
-        mock_db.get_profile = AsyncMock(return_value=_make_profile_response())
-
-        # WHEN starting another search
-        response = await client.post("/api/scout/search", json=filters)
+    # WHEN starting another search
+    response = await client.post("/api/scout/search", json=filters)
 
     # THEN returns 429
     assert response.status_code == 429
@@ -193,15 +160,16 @@ async def test_cancel_unknown_run_returns_404(client: AsyncClient):
 
 async def test_stream_search_returns_sse_content_type(client: AsyncClient):
     # GIVEN a valid search run
+    from app.schemas.scout import SearchFilters
+
     with (
         patch("app.api.scout.github_repos_db") as mock_db,
         patch("app.api.scout.scout_search_stream") as mock_stream,
     ):
         run_resp = SearchRunResponse(run_id="run-123", status="running")
         mock_db.get_search_run = AsyncMock(return_value=run_resp)
-        mock_db.get_profile = AsyncMock(return_value=_make_profile_response())
         mock_db.get_search_run_filters = AsyncMock(
-            return_value={"languages": ["Python"], "min_stars": 10, "max_stars": 5000}
+            return_value=SearchFilters(languages=["Python"], min_stars=10, max_stars=5000)
         )
 
         async def fake_stream(*args, **kwargs):

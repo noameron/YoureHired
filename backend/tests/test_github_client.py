@@ -1,6 +1,5 @@
 """Tests for GitHub GraphQL API client — RED phase."""
 
-from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
 import httpx
@@ -322,6 +321,85 @@ class TestGitHubGraphQLClient:
         assert "owner/repo" in readmes
         assert readmes["owner/repo"] is None
 
+    async def test_search_skips_null_edge_nodes(self):
+        """GIVEN GitHub API returns edges with some null nodes (deleted/inaccessible repos)
+        WHEN search_repositories is called
+        THEN null nodes are skipped and only valid repos are returned without crashing
+        """
+        # GIVEN
+        client = GitHubGraphQLClient("valid_token")
+        filters = SearchFilters(languages=["Python"])
+
+        mock_response = httpx.Response(
+            status_code=200,
+            json={
+                "data": {
+                    "search": {
+                        "repositoryCount": 3,
+                        "edges": [
+                            {
+                                "node": {
+                                    "databaseId": 123,
+                                    "owner": {"login": "test1"},
+                                    "name": "repo1",
+                                    "url": "https://github.com/test1/repo1",
+                                    "description": "First valid repo",
+                                    "primaryLanguage": {"name": "Python"},
+                                    "languages": {"nodes": [{"name": "Python"}]},
+                                    "stargazerCount": 100,
+                                    "forkCount": 10,
+                                    "issues": {"totalCount": 5},
+                                    "repositoryTopics": {"nodes": []},
+                                    "licenseInfo": None,
+                                    "pushedAt": "2024-01-01T00:00:00Z",
+                                    "createdAt": "2023-01-01T00:00:00Z",
+                                    "goodFirstIssues": {"totalCount": 0},
+                                    "helpWantedIssues": {"totalCount": 0},
+                                }
+                            },
+                            {
+                                "node": None  # Deleted or inaccessible repo
+                            },
+                            {
+                                "node": {
+                                    "databaseId": 456,
+                                    "owner": {"login": "test2"},
+                                    "name": "repo2",
+                                    "url": "https://github.com/test2/repo2",
+                                    "description": "Second valid repo",
+                                    "primaryLanguage": {"name": "Python"},
+                                    "languages": {"nodes": [{"name": "Python"}]},
+                                    "stargazerCount": 200,
+                                    "forkCount": 20,
+                                    "issues": {"totalCount": 10},
+                                    "repositoryTopics": {"nodes": []},
+                                    "licenseInfo": None,
+                                    "pushedAt": "2024-02-01T00:00:00Z",
+                                    "createdAt": "2023-02-01T00:00:00Z",
+                                    "goodFirstIssues": {"totalCount": 1},
+                                    "helpWantedIssues": {"totalCount": 2},
+                                }
+                            },
+                        ],
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                    },
+                    "rateLimit": {"remaining": 5000},
+                }
+            },
+            request=httpx.Request("POST", GitHubGraphQLClient.GRAPHQL_URL),
+        )
+
+        mock_post = AsyncMock(return_value=mock_response)
+
+        # WHEN
+        with patch("httpx.AsyncClient.post", mock_post):
+            repos, warnings = await client.search_repositories(filters)
+
+        # THEN
+        assert len(repos) == 2
+        assert repos[0].name == "repo1"
+        assert repos[1].name == "repo2"
+
     async def test_graphql_alias_sanitization(self):
         """GIVEN repository owner/name with special characters
         WHEN fetch_readmes is called
@@ -334,6 +412,37 @@ class TestGitHubGraphQLClient:
         # WHEN / THEN
         with pytest.raises(ValueError, match="invalid.*characters"):
             await client.fetch_readmes(malicious_repos)
+
+    async def test_graphql_error_response_raises_value_error(self):
+        """GIVEN GitHub API returns 200 with errors array and data=None
+        WHEN _execute_query is called
+        THEN ValueError is raised with error messages
+        """
+        # GIVEN
+        client = GitHubGraphQLClient("valid_token")
+        query = "{ viewer { login } }"
+        error_response = httpx.Response(
+            status_code=200,
+            json={"data": None, "errors": [{"message": "API rate limit exceeded"}]},
+            request=httpx.Request("POST", GitHubGraphQLClient.GRAPHQL_URL),
+        )
+        mock_post = AsyncMock(return_value=error_response)
+
+        # WHEN / THEN
+        with patch("httpx.AsyncClient.post", mock_post):
+            with pytest.raises(ValueError, match="API rate limit exceeded"):
+                await client._execute_query(query)
+
+    async def test_default_max_stars_is_large_enough(self):
+        """GIVEN SearchFilters with default values
+        WHEN max_stars is checked
+        THEN it should be >= 200000 to include popular repos
+        """
+        # GIVEN
+        filters = SearchFilters(languages=["Python"])
+
+        # WHEN / THEN
+        assert filters.max_stars >= 200000
 
 
 class TestBuildSearchQueryString:
@@ -395,20 +504,19 @@ class TestBuildSearchQueryString:
         assert "archived:false" in query
         assert "fork:false" in query
 
-    def test_build_search_query_string_default_activity_date(self):
+    def test_build_search_query_string_no_pushed_when_no_activity_date(self):
         """GIVEN SearchFilters with min_activity_date=None
         WHEN _build_search_query_string is called
-        THEN query defaults to 6 months ago from today
+        THEN query does NOT include pushed date filter
         """
         # GIVEN
         filters = SearchFilters(languages=["TypeScript"], min_activity_date=None)
-        six_months_ago = (datetime.now() - timedelta(days=180)).strftime("%Y-%m-%d")
 
         # WHEN
         query = _build_search_query_string(filters)
 
         # THEN
-        assert f"pushed:>={six_months_ago}" in query
+        assert "pushed" not in query
 
 
 class TestCreateGitHubClient:
