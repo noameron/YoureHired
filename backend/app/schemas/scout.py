@@ -5,39 +5,16 @@ from typing import Literal, Self
 from pydantic import BaseModel, Field, model_validator
 
 
-class ProfileIdResponse(BaseModel):
-    """Response after saving a developer profile."""
-
-    id: str
-
-
-class DeveloperProfile(BaseModel):
-    """Developer profile for repository matching."""
-
-    languages: list[str] = Field(min_length=1)
-    topics: list[str] = Field(default_factory=list)
-    skill_level: Literal["beginner", "intermediate", "advanced"] = "intermediate"
-    goals: str = Field(default="", max_length=500)
-
-
-class DeveloperProfileResponse(BaseModel):
-    """API response for a stored developer profile."""
-
-    id: str
-    profile: DeveloperProfile
-    created_at: str
-    updated_at: str | None = None
-
-
 class SearchFilters(BaseModel):
     """Filters for GitHub repository search."""
 
     languages: list[str] = Field(min_length=1)
     min_stars: int = Field(default=10, ge=0)
-    max_stars: int = Field(default=50000, ge=0)
+    max_stars: int = Field(default=500000, ge=0)
     topics: list[str] = Field(default_factory=list)
     min_activity_date: str | None = Field(default=None)
     license: str | None = None
+    query: str = Field(default="", max_length=500)
 
     @model_validator(mode="after")
     def validate_star_range(self) -> Self:

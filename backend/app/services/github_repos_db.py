@@ -7,15 +7,12 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from functools import cache
 from pathlib import Path
-from typing import Literal
 
 import aiosqlite
 
 from app.config import settings
 from app.schemas.scout import (
     AnalysisResult,
-    DeveloperProfile,
-    DeveloperProfileResponse,
     RepoMetadata,
     ScoutSearchResult,
     SearchFilters,
@@ -25,7 +22,6 @@ from app.schemas.scout import (
 _QUERIES_DIR = Path(__file__).parent / "queries"
 
 _DDL_KEYS = [
-    "create_developer_profiles",
     "create_search_runs",
     "create_repositories",
     "create_analysis_results",
@@ -96,69 +92,6 @@ class GitHubReposDB:
         self._initialized = True
         await self.prune_stale_repos()
 
-    async def save_profile(
-        self, profile: DeveloperProfile
-    ) -> Literal["default"]:
-        await self._ensure_init()
-        now = datetime.now(tz=UTC).isoformat()
-        async with self._connect() as db:
-            cursor = await db.execute(
-                _sql("check_profile_exists"),
-                ("default",),
-            )
-            exists = await cursor.fetchone()
-            if exists:
-                await db.execute(
-                    _sql("update_profile"),
-                    (
-                        json.dumps(profile.languages),
-                        json.dumps(profile.topics),
-                        profile.skill_level,
-                        profile.goals,
-                        now,
-                        "default",
-                    ),
-                )
-            else:
-                await db.execute(
-                    _sql("insert_profile"),
-                    (
-                        "default",
-                        json.dumps(profile.languages),
-                        json.dumps(profile.topics),
-                        profile.skill_level,
-                        profile.goals,
-                        now,
-                    ),
-                )
-            await db.commit()
-        return "default"
-
-    async def get_profile(
-        self,
-    ) -> DeveloperProfileResponse | None:
-        await self._ensure_init()
-        async with self._connect() as db:
-            cursor = await db.execute(
-                _sql("get_profile"),
-                ("default",),
-            )
-            row = await cursor.fetchone()
-        if row is None:
-            return None
-        profile = DeveloperProfile(
-            languages=json.loads(row[1]),
-            topics=json.loads(row[2]),
-            skill_level=row[3],
-            goals=row[4],
-        )
-        return DeveloperProfileResponse(
-            id=row[0],
-            profile=profile,
-            created_at=row[5],
-            updated_at=row[6],
-        )
-
     async def create_search_run(
         self, filters: SearchFilters
     ) -> str:
@@ -166,17 +99,10 @@ class GitHubReposDB:
         run_id = str(uuid.uuid4())
         now = datetime.now(tz=UTC).isoformat()
         async with self._connect() as db:
-            cursor = await db.execute(
-                _sql("check_profile_for_run"),
-                ("default",),
-            )
-            profile_row = await cursor.fetchone()
-            profile_id = profile_row[0] if profile_row else None
             await db.execute(
                 _sql("insert_search_run"),
                 (
                     run_id,
-                    profile_id,
                     json.dumps(filters.model_dump()),
                     "running",
                     now,
